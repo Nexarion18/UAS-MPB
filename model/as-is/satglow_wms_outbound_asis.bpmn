@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_SatglowWMS" targetNamespace="http://satglow.com/wms/bpmn" exporter="Camunda Modeler" exporterVersion="5.46.1">
+  <collaboration id="Collaboration_WMS_AsIs">
+    <participant id="Pool_Marketplace" name="Entitas Eksternal&#10;(Marketplace / Vendor)" processRef="Process_Marketplace_asis_out" />
+    <participant id="Pool_Satglow" name="Internal Satglow" processRef="Process_Satglow_outbond_asis" />
+    <messageFlow id="MF_RekapPengiriman" name="Salinan Resi / Rekap Pengiriman" sourceRef="Task_SerahkanRekapKeAdmin" targetRef="Task_BukaModulOutbound" />
+    <messageFlow id="MF_PesananMasuk" name="Notifikasi Pesanan Masuk" sourceRef="StartEvent_PesananMasuk" targetRef="Task_AksesSellerCenter" />
+  </collaboration>
+  <process id="Process_Marketplace_asis_out" name="Proses Marketplace" isExecutable="false">
+    <sequenceFlow id="SF_Marketplace_End" sourceRef="StartEvent_PesananMasuk" targetRef="EndEvent_Marketplace" />
+    <endEvent id="EndEvent_Marketplace" name="Pesanan Diteruskan ke Satglow">
+      <incoming>SF_Marketplace_End</incoming>
+    </endEvent>
+    <startEvent id="StartEvent_PesananMasuk" name="Pelanggan melakukan transaksi dan pesanan masuk">
+      <outgoing>SF_Marketplace_End</outgoing>
+    </startEvent>
+  </process>
+  <process id="Process_Satglow_outbond_asis" name="Proses Outbound Satglow (As-Is)" isExecutable="false">
+    <laneSet id="LaneSet_Satglow">
+      <lane id="Lane_StaffAdmin" name="Staff Admin">
+        <flowNodeRef>Task_AksesSellerCenter</flowNodeRef>
+        <flowNodeRef>Task_CetakResi</flowNodeRef>
+        <flowNodeRef>Task_BukaModulOutbound</flowNodeRef>
+        <flowNodeRef>Task_InputManualStok</flowNodeRef>
+        <flowNodeRef>StartEvent_Satglow_Internal</flowNodeRef>
+      </lane>
+      <lane id="Lane_StaffGudang" name="Staff Gudang">
+        <flowNodeRef>Task_CariBarangFisik</flowNodeRef>
+        <flowNodeRef>Task_PackingPesanan</flowNodeRef>
+        <flowNodeRef>Task_SerahkanRekapKeAdmin</flowNodeRef>
+      </lane>
+      <lane id="Lane_SistemExisting" name="Sistem Existing">
+        <flowNodeRef>Task_KurangiStokDB</flowNodeRef>
+        <flowNodeRef>EndEvent_PembaruanStok</flowNodeRef>
+      </lane>
+    </laneSet>
+    <userTask id="Task_AksesSellerCenter" name="Mengakses Seller Center (Marketplace) untuk melihat daftar pesanan">
+      <incoming>SF_Start_AksesSellerCenter</incoming>
+      <outgoing>SF_AksesSellerCenter_CetakResi</outgoing>
+    </userTask>
+    <manualTask id="Task_CetakResi" name="Mencetak resi pengiriman fisik dan menyerahkannya ke Staff Gudang">
+      <incoming>SF_AksesSellerCenter_CetakResi</incoming>
+      <outgoing>SF_CetakResi_CariBarang</outgoing>
+    </manualTask>
+    <userTask id="Task_BukaModulOutbound" name="Membuka modul Outbound di Sistem Existing">
+      <incoming>SF_SerahkanRekap_BukaModul</incoming>
+      <outgoing>SF_BukaModul_InputManual</outgoing>
+    </userTask>
+    <userTask id="Task_InputManualStok" name="Menginput manual jumlah barang yang keluar">
+      <incoming>SF_BukaModul_InputManual</incoming>
+      <outgoing>SF_InputManual_KurangiStok</outgoing>
+    </userTask>
+    <manualTask id="Task_CariBarangFisik" name="Membaca pesanan pada resi dan mencari fisik barang di rak">
+      <incoming>SF_CetakResi_CariBarang</incoming>
+      <outgoing>SF_CariBarang_Packing</outgoing>
+    </manualTask>
+    <manualTask id="Task_PackingPesanan" name="Mem-packing pesanan dan menyerahkannya ke kurir logistik">
+      <incoming>SF_CariBarang_Packing</incoming>
+      <outgoing>SF_Packing_SerahkanRekap</outgoing>
+    </manualTask>
+    <manualTask id="Task_SerahkanRekapKeAdmin" name="Memberikan salinan resi / rekap pengiriman kembali ke Staff Admin">
+      <incoming>SF_Packing_SerahkanRekap</incoming>
+      <outgoing>SF_SerahkanRekap_BukaModul</outgoing>
+    </manualTask>
+    <serviceTask id="Task_KurangiStokDB" name="Mengurangi kuantitas stok produk secara global di database">
+      <incoming>SF_InputManual_KurangiStok</incoming>
+      <outgoing>SF_KurangiStok_End</outgoing>
+    </serviceTask>
+    <endEvent id="EndEvent_PembaruanStok" name="Pembaruan stok selesai dilakukan secara manual">
+      <incoming>SF_KurangiStok_End</incoming>
+    </endEvent>
+    <startEvent id="StartEvent_Satglow_Internal" name="Pesanan diterima dari Marketplace">
+      <outgoing>SF_Start_AksesSellerCenter</outgoing>
+      <messageEventDefinition id="MED_PesananDiterima" />
+    </startEvent>
+    <sequenceFlow id="SF_Start_AksesSellerCenter" sourceRef="StartEvent_Satglow_Internal" targetRef="Task_AksesSellerCenter" />
+    <sequenceFlow id="SF_AksesSellerCenter_CetakResi" sourceRef="Task_AksesSellerCenter" targetRef="Task_CetakResi" />
+    <sequenceFlow id="SF_CetakResi_CariBarang" sourceRef="Task_CetakResi" targetRef="Task_CariBarangFisik" />
+    <sequenceFlow id="SF_CariBarang_Packing" sourceRef="Task_CariBarangFisik" targetRef="Task_PackingPesanan" />
+    <sequenceFlow id="SF_Packing_SerahkanRekap" sourceRef="Task_PackingPesanan" targetRef="Task_SerahkanRekapKeAdmin" />
+    <sequenceFlow id="SF_SerahkanRekap_BukaModul" sourceRef="Task_SerahkanRekapKeAdmin" targetRef="Task_BukaModulOutbound" />
+    <sequenceFlow id="SF_BukaModul_InputManual" sourceRef="Task_BukaModulOutbound" targetRef="Task_InputManualStok" />
+    <sequenceFlow id="SF_InputManual_KurangiStok" sourceRef="Task_InputManualStok" targetRef="Task_KurangiStokDB" />
+    <sequenceFlow id="SF_KurangiStok_End" sourceRef="Task_KurangiStokDB" targetRef="EndEvent_PembaruanStok" />
+    <textAnnotation id="Annotation_FEFO">
+      <text>Pengambilan acak. Rawan terjadi pelanggaran FEFO sehingga barang lama menjadi dead stock.</text>
+    </textAnnotation>
+    <textAnnotation id="Annotation_StokGlobal">
+      <text>Sistem tidak mendeteksi umur stok fisik mana yang tersisa di gudang.</text>
+    </textAnnotation>
+    <association id="Assoc_FEFO" sourceRef="Task_CariBarangFisik" targetRef="Annotation_FEFO" />
+    <association id="Assoc_StokGlobal" sourceRef="Task_KurangiStokDB" targetRef="Annotation_StokGlobal" />
+  </process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_WMS_AsIs">
+    <bpmndi:BPMNPlane id="BPMNPlane_WMS_AsIs" bpmnElement="Collaboration_WMS_AsIs">
+      <bpmndi:BPMNShape id="Shape_Pool_Marketplace" bpmnElement="Pool_Marketplace" isHorizontal="true">
+        <dc:Bounds x="120" y="80" width="1480" height="160" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="130" y="140" width="30" height="80" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndEvent_Marketplace" bpmnElement="EndEvent_Marketplace">
+        <dc:Bounds x="352" y="142" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="339" y="185" width="68" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_StartEvent_PesananMasuk" bpmnElement="StartEvent_PesananMasuk">
+        <dc:Bounds x="220" y="142" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="202" y="83" width="79" height="53" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_SF_Marketplace_End" bpmnElement="SF_Marketplace_End">
+        <di:waypoint x="256" y="160" />
+        <di:waypoint x="352" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Pool_Satglow" bpmnElement="Pool_Satglow" isHorizontal="true">
+        <dc:Bounds x="120" y="280" width="1480" height="640" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_SistemExisting" bpmnElement="Lane_SistemExisting" isHorizontal="true">
+        <dc:Bounds x="150" y="720" width="1450" height="200" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_StaffGudang" bpmnElement="Lane_StaffGudang" isHorizontal="true">
+        <dc:Bounds x="150" y="480" width="1450" height="240" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_StaffAdmin" bpmnElement="Lane_StaffAdmin" isHorizontal="true">
+        <dc:Bounds x="150" y="280" width="1450" height="200" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="155" y="355" width="30" height="60" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_AksesSellerCenter" bpmnElement="Task_AksesSellerCenter">
+        <dc:Bounds x="310" y="338" width="160" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_CetakResi" bpmnElement="Task_CetakResi">
+        <dc:Bounds x="530" y="338" width="160" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_BukaModulOutbound" bpmnElement="Task_BukaModulOutbound">
+        <dc:Bounds x="970" y="338" width="160" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_InputManualStok" bpmnElement="Task_InputManualStok">
+        <dc:Bounds x="1190" y="338" width="160" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_CariBarangFisik" bpmnElement="Task_CariBarangFisik">
+        <dc:Bounds x="530" y="538" width="160" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_PackingPesanan" bpmnElement="Task_PackingPesanan">
+        <dc:Bounds x="750" y="538" width="160" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SerahkanRekap" bpmnElement="Task_SerahkanRekapKeAdmin">
+        <dc:Bounds x="970" y="538" width="160" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_KurangiStokDB" bpmnElement="Task_KurangiStokDB">
+        <dc:Bounds x="1190" y="738" width="160" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndEvent_PembaruanStok" bpmnElement="EndEvent_PembaruanStok">
+        <dc:Bounds x="1432" y="760" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1408" y="803" width="90" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_StartEvent_Satglow" bpmnElement="StartEvent_Satglow_Internal">
+        <dc:Bounds x="220" y="360" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="196" y="403" width="90" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Annotation_FEFO" bpmnElement="Annotation_FEFO">
+        <dc:Bounds x="530" y="640" width="280" height="60" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Annotation_StokGlobal" bpmnElement="Annotation_StokGlobal">
+        <dc:Bounds x="1190" y="850" width="280" height="50" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_SF_Start_Akses" bpmnElement="SF_Start_AksesSellerCenter">
+        <di:waypoint x="256" y="378" />
+        <di:waypoint x="310" y="378" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_Akses_Cetak" bpmnElement="SF_AksesSellerCenter_CetakResi">
+        <di:waypoint x="470" y="378" />
+        <di:waypoint x="530" y="378" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_Cetak_CariBarang" bpmnElement="SF_CetakResi_CariBarang">
+        <di:waypoint x="610" y="418" />
+        <di:waypoint x="610" y="538" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_Cari_Packing" bpmnElement="SF_CariBarang_Packing">
+        <di:waypoint x="690" y="578" />
+        <di:waypoint x="750" y="578" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_Packing_Serahkan" bpmnElement="SF_Packing_SerahkanRekap">
+        <di:waypoint x="910" y="578" />
+        <di:waypoint x="970" y="578" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_Serahkan_BukaModul" bpmnElement="SF_SerahkanRekap_BukaModul">
+        <di:waypoint x="1050" y="538" />
+        <di:waypoint x="1050" y="418" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_BukaModul_Input" bpmnElement="SF_BukaModul_InputManual">
+        <di:waypoint x="1130" y="378" />
+        <di:waypoint x="1190" y="378" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_Input_KurangiStok" bpmnElement="SF_InputManual_KurangiStok">
+        <di:waypoint x="1270" y="418" />
+        <di:waypoint x="1270" y="738" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_KurangiStok_End" bpmnElement="SF_KurangiStok_End">
+        <di:waypoint x="1350" y="778" />
+        <di:waypoint x="1432" y="778" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_FEFO" bpmnElement="Assoc_FEFO">
+        <di:waypoint x="610" y="618" />
+        <di:waypoint x="610" y="640" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_StokGlobal" bpmnElement="Assoc_StokGlobal">
+        <di:waypoint x="1270" y="818" />
+        <di:waypoint x="1270" y="850" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MF_PesananMasuk" bpmnElement="MF_PesananMasuk">
+        <di:waypoint x="238" y="178" />
+        <di:waypoint x="238" y="360" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="250" y="246" width="80" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

@@ -1,0 +1,31 @@
+{
+  "components": [
+    {
+      "label": "Instruksi Pemindaian Barcode",
+      "text": "Silakan *scan* barcode pada fisik produk untuk memastikan barang yang diambil sudah sesuai dengan instruksi Picking List dan algoritma FEFO.",
+      "type": "text"
+    },
+    {
+      "label": "Nomor Barcode Produk",
+      "type": "textfield",
+      "id": "Field_barcodeNumber",
+      "key": "barcodeNumber",
+      "validate": { "required": true }
+    },
+    {
+      "values": [
+        { "label": "SIAP (Barang Sesuai & Siap Di-packing)", "value": "SIAP" },
+        { "label": "TIDAK SESUAI (Lapor Kendala)", "value": "TIDAK_SESUAI" }
+      ],
+      "label": "Konfirmasi Fisik",
+      "type": "radio",
+      "id": "Field_isScanned",
+      "key": "isScanned",
+      "validate": { "required": true }
+    }
+  ],
+  "type": "default",
+  "id": "Form_ScanBarcode",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20.0"
+}

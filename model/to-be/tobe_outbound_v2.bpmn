@@ -1,0 +1,399 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_SatglowWMS_Outbound_ToBe" targetNamespace="http://satglow.com/wms/bpmn" exporter="Camunda Modeler" exporterVersion="5.46.1">
+  <bpmn:message id="Message_PesananMasuk" name="Message_PesananMasuk" />
+  <bpmn:message id="Message_StatusDikirim" name="Message_StatusDikirim" />
+  
+  <bpmn:collaboration id="Collaboration_WMS_Outbound_ToBe">
+    <bpmn:participant id="Pool_Marketplace" name="Entitas Eksternal (Marketplace / TikTok / Shopee / dll)" processRef="Process_Marketplace_sg" />
+    <bpmn:participant id="Pool_Satglow" name="Internal Satglow" processRef="Process_Outbound_WMS" />
+    <bpmn:messageFlow id="MF_PesananMasuk" name="API Trigger Pesanan Masuk" sourceRef="StartEvent_PesananMasuk" targetRef="CatchEvent_API" />
+    <bpmn:messageFlow id="MF_StatusDikirim" name="API Update Status Pesanan: Dikirim" sourceRef="ThrowEvent_StatusDikirim" targetRef="EndEvent_Marketplace" />
+    <bpmn:textAnnotation id="Annotation_PickingList">
+      <bpmn:text>Picking List berisi: ID Batch, lokasi rak, ID Gudang, dan jumlah yang harus diambil.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_PickingList" sourceRef="Task_BuatPickingList" targetRef="Annotation_PickingList" />
+    <bpmn:textAnnotation id="Annotation_FinalUpdate">
+      <bpmn:text>Pemotongan stok bersifat permanen dan terikat pada ID Batch FEFO yang telah dipilih sejak awal.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_FinalUpdate" sourceRef="Task_FinalUpdate" targetRef="Annotation_FinalUpdate" />
+  </bpmn:collaboration>
+  
+  <bpmn:process id="Process_Marketplace_sg" name="Proses Marketplace" isExecutable="false">
+    <bpmn:startEvent id="StartEvent_PesananMasuk" name="Transaksi berhasil (API Trigger)">
+      <bpmn:outgoing>SF_Marketplace_Internal</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:endEvent id="EndEvent_Marketplace" name="Status Pesanan Diperbarui: Dikirim">
+      <bpmn:incoming>SF_Marketplace_Internal</bpmn:incoming>
+      <bpmn:messageEventDefinition id="MED_StatusDikirim_In" messageRef="Message_StatusDikirim" />
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="SF_Marketplace_Internal" sourceRef="StartEvent_PesananMasuk" targetRef="EndEvent_Marketplace" />
+  </bpmn:process>
+  
+  <bpmn:process id="Process_Outbound_WMS" name="Proses 7 - Outbound &#38; FEFO" isExecutable="true" camunda:historyTimeToLive="30" camunda:tenantId="55555">
+    <bpmn:laneSet id="LaneSet_Satglow">
+      <bpmn:lane id="Lane_SistemWMS" name="Sistem WMS">
+        <bpmn:flowNodeRef>CatchEvent_API</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_FEFO</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_BuatPickingList</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ReserveStok</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CetakLabelOtomatis</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_FinalUpdate</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ThrowEvent_StatusDikirim</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_OutboundSelesai</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_StaffGudang" name="Staff Gudang">
+        <bpmn:flowNodeRef>SubProcess_PickingFisik</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_StaffAdmin" name="Staff Admin">
+        <bpmn:flowNodeRef>Task_CrossCheck</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ApproveResi</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    
+    <bpmn:startEvent id="CatchEvent_API" name="Menerima payload API pesanan (Simulasi)">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="orderID" label="Simulasi Order Masuk: Masukkan Order ID" type="string" defaultValue="ORD-778899" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>SF_Catch_FEFO</bpmn:outgoing>
+    </bpmn:startEvent>
+    
+    <bpmn:serviceTask id="Task_FEFO" name="Menjalankan algoritma FEFO (mencari ID Batch terdekat)" camunda:expression="${true}">
+      <bpmn:incoming>SF_Catch_FEFO</bpmn:incoming>
+      <bpmn:outgoing>SF_FEFO_PickingList</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <bpmn:serviceTask id="Task_BuatPickingList" name="Membuat Picking List otomatis" camunda:expression="${true}">
+      <bpmn:incoming>SF_FEFO_PickingList</bpmn:incoming>
+      <bpmn:outgoing>SF_PickingList_BacaPickingList</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:subProcess id="SubProcess_PickingFisik" name="Sub-Proses Pelaksanaan Picking Fisik">
+      <bpmn:incoming>SF_PickingList_BacaPickingList</bpmn:incoming>
+      <bpmn:outgoing>SF_Scan_ReserveStok</bpmn:outgoing>
+      
+      <bpmn:startEvent id="StartEvent_SubPicking" name="Mulai">
+        <bpmn:outgoing>SF_SubStart_Baca</bpmn:outgoing>
+      </bpmn:startEvent>
+      
+      <bpmn:userTask id="Task_BacaPickingList" name="Membaca Picking List via perangkat" camunda:candidateGroups="gudangSG">
+        <bpmn:extensionElements>
+          <camunda:formData>
+            <camunda:formField id="pickingListInfo" label="Instruksi Sistem (Baca Saja)" type="string" defaultValue="Ambil 5 Pcs Serum Glow di Rak B2 (Batch: B-092)" />
+          </camunda:formData>
+        </bpmn:extensionElements>
+        <bpmn:incoming>SF_SubStart_Baca</bpmn:incoming>
+        <bpmn:outgoing>SF_Baca_AmbilBarang</bpmn:outgoing>
+      </bpmn:userTask>
+      
+      <bpmn:userTask id="Task_AmbilBarang" name="Mengambil fisik barang sesuai instruksi" camunda:candidateGroups="gudangSG">
+        <bpmn:extensionElements>
+          <camunda:formData>
+            <camunda:formField id="konfirmasiAmbil" label="Ketik OK jika fisik barang sudah diambil dari rak" type="string" defaultValue="OK" />
+          </camunda:formData>
+        </bpmn:extensionElements>
+        <bpmn:incoming>SF_Baca_AmbilBarang</bpmn:incoming>
+        <bpmn:outgoing>SF_Ambil_Scan</bpmn:outgoing>
+      </bpmn:userTask>
+      
+      <bpmn:userTask id="Task_ScanBarcode" name="Scan Barcode Konfirmasi" camunda:formRef="Form_ScanBarcode" camunda:formRefBinding="latest" camunda:candidateGroups="gudangSG">
+        <bpmn:incoming>SF_Ambil_Scan</bpmn:incoming>
+        <bpmn:outgoing>SF_Scan_SubEnd</bpmn:outgoing>
+      </bpmn:userTask>
+      
+      <bpmn:endEvent id="EndEvent_SubPicking" name="Selesai">
+        <bpmn:incoming>SF_Scan_SubEnd</bpmn:incoming>
+      </bpmn:endEvent>
+      
+      <bpmn:sequenceFlow id="SF_SubStart_Baca" sourceRef="StartEvent_SubPicking" targetRef="Task_BacaPickingList" />
+      <bpmn:sequenceFlow id="SF_Baca_AmbilBarang" sourceRef="Task_BacaPickingList" targetRef="Task_AmbilBarang" />
+      <bpmn:sequenceFlow id="SF_Ambil_Scan" sourceRef="Task_AmbilBarang" targetRef="Task_ScanBarcode" />
+      <bpmn:sequenceFlow id="SF_Scan_SubEnd" sourceRef="Task_ScanBarcode" targetRef="EndEvent_SubPicking" />
+    </bpmn:subProcess>
+    <bpmn:serviceTask id="Task_ReserveStok" name="Menahan (reserve) stok sementara" camunda:expression="${true}">
+      <bpmn:incoming>SF_Scan_ReserveStok</bpmn:incoming>
+      <bpmn:outgoing>SF_Reserve_CrossCheck</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <bpmn:userTask id="Task_CrossCheck" name="Melakukan cross-check fisik vs. sistem" camunda:candidateGroups="adminSG">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="cekFisikAdmin" label="Apakah barang yang disiapkan gudang sudah sesuai dengan pesanan?" type="boolean" defaultValue="true" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>SF_Reserve_CrossCheck</bpmn:incoming>
+      <bpmn:outgoing>SF_CrossCheck_Approve</bpmn:outgoing>
+    </bpmn:userTask>
+    
+    <bpmn:userTask id="Task_ApproveResi" name="Approve &#38; Cetak Resi" camunda:candidateGroups="adminSG">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="adminDecision" label="Verifikasi Akhir: Ketik &#39;APPROVE&#39; untuk konfirmasi pengiriman:" type="string" defaultValue="APPROVE" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>SF_CrossCheck_Approve</bpmn:incoming>
+      <bpmn:outgoing>SF_Approve_CetakLabel</bpmn:outgoing>
+    </bpmn:userTask>
+    
+    <bpmn:serviceTask id="Task_CetakLabelOtomatis" name="Mencetak label pengiriman otomatis" camunda:expression="${true}">
+      <bpmn:incoming>SF_Approve_CetakLabel</bpmn:incoming>
+      <bpmn:outgoing>SF_CetakLabel_FinalUpdate</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <bpmn:serviceTask id="Task_FinalUpdate" name="Mengeksekusi Final Update stok &#38; Kirim Notif Discord">
+      <bpmn:extensionElements>
+        <camunda:connector>
+          <camunda:connectorId>http-connector</camunda:connectorId>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="url">https://discordapp.com/api/webhooks/1517172290822082762/GzB9eiHib3Dmf-LzR4_sPdlX1e1_uUZ2RP_wbuw3CLxiay-Xz8dK-BIOFt1VIqHAyDfl</camunda:inputParameter>
+            <camunda:inputParameter name="method">POST</camunda:inputParameter>
+            <camunda:inputParameter name="headers">
+              <camunda:map>
+                <camunda:entry key="Content-Type">application/json</camunda:entry>
+              </camunda:map>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="payload">{"content": "🔔 **WMS Satglow Update:** Pesanan dengan Order ID **${orderID}** berhasil di-packing dan Final Update stok selesai dieksekusi!"}</camunda:inputParameter>
+          </camunda:inputOutput>
+        </camunda:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>SF_CetakLabel_FinalUpdate</bpmn:incoming>
+      <bpmn:outgoing>SF_FinalUpdate_Throw</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <bpmn:intermediateThrowEvent id="ThrowEvent_StatusDikirim" name="Kirim status API">
+      <bpmn:incoming>SF_FinalUpdate_Throw</bpmn:incoming>
+      <bpmn:outgoing>SF_Throw_End</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_StatusDikirim_Out" messageRef="Message_StatusDikirim" />
+    </bpmn:intermediateThrowEvent>
+    
+    <bpmn:endEvent id="EndEvent_OutboundSelesai" name="Proses Outbound selesai">
+      <bpmn:incoming>SF_Throw_End</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <bpmn:sequenceFlow id="SF_Catch_FEFO" sourceRef="CatchEvent_API" targetRef="Task_FEFO" />
+    <bpmn:sequenceFlow id="SF_FEFO_PickingList" sourceRef="Task_FEFO" targetRef="Task_BuatPickingList" />
+    
+    <bpmn:sequenceFlow id="SF_PickingList_BacaPickingList" sourceRef="Task_BuatPickingList" targetRef="SubProcess_PickingFisik" />
+    <bpmn:sequenceFlow id="SF_Scan_ReserveStok" sourceRef="SubProcess_PickingFisik" targetRef="Task_ReserveStok" />
+    
+    <bpmn:sequenceFlow id="SF_Reserve_CrossCheck" sourceRef="Task_ReserveStok" targetRef="Task_CrossCheck" />
+    <bpmn:sequenceFlow id="SF_CrossCheck_Approve" sourceRef="Task_CrossCheck" targetRef="Task_ApproveResi" />
+    <bpmn:sequenceFlow id="SF_Approve_CetakLabel" sourceRef="Task_ApproveResi" targetRef="Task_CetakLabelOtomatis" />
+    <bpmn:sequenceFlow id="SF_CetakLabel_FinalUpdate" sourceRef="Task_CetakLabelOtomatis" targetRef="Task_FinalUpdate" />
+    <bpmn:sequenceFlow id="SF_FinalUpdate_Throw" sourceRef="Task_FinalUpdate" targetRef="ThrowEvent_StatusDikirim" />
+    <bpmn:sequenceFlow id="SF_Throw_End" sourceRef="ThrowEvent_StatusDikirim" targetRef="EndEvent_OutboundSelesai" />
+    
+    <bpmn:textAnnotation id="Annotation_FEFO">
+      <bpmn:text>Algoritma FEFO memilih batch dengan Expired Date paling dekat dari 4 gudang untuk mencegah dead stock.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Annotation_ReserveStok">
+      <bpmn:text>Stok di-reserve (ditahan) sementara agar tidak terjadi double-pick selama proses verifikasi Admin berlangsung.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_FEFO" sourceRef="Task_FEFO" targetRef="Annotation_FEFO" />
+    <bpmn:association id="Assoc_ReserveStok" sourceRef="Task_ReserveStok" targetRef="Annotation_ReserveStok" />
+  </bpmn:process>
+  
+  <bpmndi:BPMNDiagram id="BPMNDiagram_WMS_Outbound_ToBe">
+    <bpmndi:BPMNPlane id="BPMNPlane_WMS_Outbound_ToBe" bpmnElement="Collaboration_WMS_Outbound_ToBe">
+      <bpmndi:BPMNShape id="Shape_Pool_Marketplace" bpmnElement="Pool_Marketplace" isHorizontal="true">
+        <dc:Bounds x="120" y="80" width="2020" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_StartEvent_PesananMasuk" bpmnElement="StartEvent_PesananMasuk">
+        <dc:Bounds x="220" y="142" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="198" y="83" width="90" height="53" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndEvent_Marketplace" bpmnElement="EndEvent_Marketplace">
+        <dc:Bounds x="2042" y="142" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2021" y="90" width="78" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_SF_Marketplace_Internal" bpmnElement="SF_Marketplace_Internal">
+        <di:waypoint x="256" y="160" />
+        <di:waypoint x="2042" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Pool_Satglow" bpmnElement="Pool_Satglow" isHorizontal="true">
+        <dc:Bounds x="120" y="280" width="2020" height="720" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_StaffAdmin" bpmnElement="Lane_StaffAdmin" isHorizontal="true">
+        <dc:Bounds x="150" y="720" width="1990" height="280" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_StaffGudang" bpmnElement="Lane_StaffGudang" isHorizontal="true">
+        <dc:Bounds x="150" y="500" width="1990" height="220" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_SistemWMS" bpmnElement="Lane_SistemWMS" isHorizontal="true">
+        <dc:Bounds x="150" y="280" width="1990" height="220" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_CatchEvent_API" bpmnElement="CatchEvent_API">
+        <dc:Bounds x="220" y="372" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="196" y="415" width="90" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_FEFO" bpmnElement="Task_FEFO">
+        <dc:Bounds x="310" y="350" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_BuatPickingList" bpmnElement="Task_BuatPickingList">
+        <dc:Bounds x="530" y="350" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="Shape_SubProcess_PickingFisik" bpmnElement="SubProcess_PickingFisik" isExpanded="true">
+        <dc:Bounds x="480" y="515" width="760" height="180" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_StartEvent_SubPicking" bpmnElement="StartEvent_SubPicking">
+        <dc:Bounds x="510" y="582" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="515" y="625" width="26" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_BacaPickingList" bpmnElement="Task_BacaPickingList">
+        <dc:Bounds x="580" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_AmbilBarang" bpmnElement="Task_AmbilBarang">
+        <dc:Bounds x="780" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ScanBarcode" bpmnElement="Task_ScanBarcode">
+        <dc:Bounds x="980" y="560" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndEvent_SubPicking" bpmnElement="EndEvent_SubPicking">
+        <dc:Bounds x="1170" y="582" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1170" y="625" width="37" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_SF_SubStart_Baca" bpmnElement="SF_SubStart_Baca">
+        <di:waypoint x="546" y="600" />
+        <di:waypoint x="580" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_Baca_AmbilBarang" bpmnElement="SF_Baca_AmbilBarang">
+        <di:waypoint x="740" y="600" />
+        <di:waypoint x="780" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_Ambil_Scan" bpmnElement="SF_Ambil_Scan">
+        <di:waypoint x="940" y="600" />
+        <di:waypoint x="980" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_Scan_SubEnd" bpmnElement="SF_Scan_SubEnd">
+        <di:waypoint x="1140" y="600" />
+        <di:waypoint x="1170" y="600" />
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNShape id="Shape_Task_ReserveStok" bpmnElement="Task_ReserveStok">
+        <dc:Bounds x="1290" y="350" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_CrossCheck" bpmnElement="Task_CrossCheck">
+        <dc:Bounds x="1290" y="778" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ApproveResi" bpmnElement="Task_ApproveResi">
+        <dc:Bounds x="1510" y="778" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_CetakLabelOtomatis" bpmnElement="Task_CetakLabelOtomatis">
+        <dc:Bounds x="1510" y="350" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_FinalUpdate" bpmnElement="Task_FinalUpdate">
+        <dc:Bounds x="1730" y="350" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ThrowEvent_StatusDikirim" bpmnElement="ThrowEvent_StatusDikirim">
+        <dc:Bounds x="1952" y="372" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1930" y="415" width="87" height="53" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndEvent_OutboundSelesai" bpmnElement="EndEvent_OutboundSelesai">
+        <dc:Bounds x="2052" y="372" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2032" y="415" width="87" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Annotation_FEFO" bpmnElement="Annotation_FEFO">
+        <dc:Bounds x="310" y="448" width="280" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Annotation_ReserveStok" bpmnElement="Annotation_ReserveStok">
+        <dc:Bounds x="1250" y="448" width="280" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_SF_Catch_FEFO" bpmnElement="SF_Catch_FEFO">
+        <di:waypoint x="256" y="390" />
+        <di:waypoint x="310" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_FEFO_PickingList" bpmnElement="SF_FEFO_PickingList">
+        <di:waypoint x="470" y="390" />
+        <di:waypoint x="530" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_PickingList_Baca" bpmnElement="SF_PickingList_BacaPickingList">
+        <di:waypoint x="610" y="430" />
+        <di:waypoint x="610" y="515" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_Scan_Reserve" bpmnElement="SF_Scan_ReserveStok">
+        <di:waypoint x="1240" y="605" />
+        <di:waypoint x="1270" y="605" />
+        <di:waypoint x="1270" y="390" />
+        <di:waypoint x="1290" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_Reserve_CrossCheck" bpmnElement="SF_Reserve_CrossCheck">
+        <di:waypoint x="1370" y="430" />
+        <di:waypoint x="1370" y="778" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_CrossCheck_Approve" bpmnElement="SF_CrossCheck_Approve">
+        <di:waypoint x="1450" y="818" />
+        <di:waypoint x="1510" y="818" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_Approve_CetakLabel" bpmnElement="SF_Approve_CetakLabel">
+        <di:waypoint x="1590" y="778" />
+        <di:waypoint x="1590" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_CetakLabel_FinalUpdate" bpmnElement="SF_CetakLabel_FinalUpdate">
+        <di:waypoint x="1670" y="390" />
+        <di:waypoint x="1730" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_FinalUpdate_Throw" bpmnElement="SF_FinalUpdate_Throw">
+        <di:waypoint x="1890" y="390" />
+        <di:waypoint x="1952" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_Throw_End" bpmnElement="SF_Throw_End">
+        <di:waypoint x="1988" y="390" />
+        <di:waypoint x="2052" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_FEFO" bpmnElement="Assoc_FEFO">
+        <di:waypoint x="390" y="430" />
+        <di:waypoint x="390" y="448" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_ReserveStok" bpmnElement="Assoc_ReserveStok">
+        <di:waypoint x="1370" y="430" />
+        <di:waypoint x="1370" y="448" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Annotation_PickingList" bpmnElement="Annotation_PickingList">
+        <dc:Bounds x="530" y="280" width="280" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Annotation_FinalUpdate" bpmnElement="Annotation_FinalUpdate">
+        <dc:Bounds x="1660" y="290" width="280" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_MF_PesananMasuk" bpmnElement="MF_PesananMasuk">
+        <di:waypoint x="238" y="178" />
+        <di:waypoint x="238" y="372" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="250" y="246" width="80" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MF_StatusDikirim" bpmnElement="MF_StatusDikirim">
+        <di:waypoint x="1970" y="372" />
+        <di:waypoint x="1970" y="240" />
+        <di:waypoint x="2060" y="240" />
+        <di:waypoint x="2060" y="178" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1980" y="295" width="84" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_PickingList" bpmnElement="Assoc_PickingList">
+        <di:waypoint x="610" y="350" />
+        <di:waypoint x="610" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_FinalUpdate" bpmnElement="Assoc_FinalUpdate">
+        <di:waypoint x="1773" y="350" />
+        <di:waypoint x="1763" y="340" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

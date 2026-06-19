@@ -1,0 +1,22 @@
+{
+  "components": [
+    {
+      "label": "Input Batch ID Produk",
+      "type": "textfield",
+      "id": "Field_batchID",
+      "key": "batchID",
+      "validate": { "required": true }
+    },
+    {
+      "label": "Input Jumlah Fisik Riil di Rak",
+      "type": "number",
+      "id": "Field_jumlahFisik",
+      "key": "jumlahFisik",
+      "validate": { "required": true, "min": 0 }
+    }
+  ],
+  "type": "default",
+  "id": "Form_ScanFisik",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20.0"
+}

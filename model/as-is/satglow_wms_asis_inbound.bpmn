@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_SatglowWMS_AsIs_Inbound" targetNamespace="http://satglow.com/wms/asis/inbound" exporter="Camunda Modeler" exporterVersion="5.44.0">
+  <collaboration id="Collab_Inbound_AsIs">
+    <participant id="Pool_Vendor" name="Vendor" processRef="Process_Vendor" />
+    <participant id="Pool_Satglow" name="Internal Satglow" processRef="Process_Satglow" />
+    <messageFlow id="MF_01" name="Surat Jalan &#38; Barang Fisik" sourceRef="Task_Vendor_KirimBarang" targetRef="Task_SG_TerimaBarang" />
+    <textAnnotation id="Annotation_01">
+      <text>Penyimpanan acak tanpa pemisahan batch / expired date</text>
+    </textAnnotation>
+    <association id="Assoc_01" associationDirection="None" sourceRef="Task_SG_SimpanRak" targetRef="Annotation_01" />
+  </collaboration>
+  <process id="Process_Vendor" name="Vendor" isExecutable="false">
+    <startEvent id="Start_Vendor" name="Perlu mengirimkan barang ke gudang Satglow">
+      <outgoing>SF_V01</outgoing>
+    </startEvent>
+    <endEvent id="End_Vendor" name="Barang &#38; Surat Jalan terkirim">
+      <incoming>SF_V02</incoming>
+    </endEvent>
+    <sequenceFlow id="SF_V01" sourceRef="Start_Vendor" targetRef="Task_Vendor_KirimBarang" />
+    <sequenceFlow id="SF_V02" sourceRef="Task_Vendor_KirimBarang" targetRef="End_Vendor" />
+    <userTask id="Task_Vendor_KirimBarang" name="Mengirimkan Surat Jalan &#38; Barang Fisik&#10;ke Gudang">
+      <incoming>SF_V01</incoming>
+      <outgoing>SF_V02</outgoing>
+    </userTask>
+  </process>
+  <process id="Process_Satglow" name="Internal Satglow" isExecutable="false">
+    <laneSet id="LaneSet_Satglow">
+      <lane id="Lane_StaffAdmin" name="Staff Admin">
+        <flowNodeRef>Task_SA_CekData</flowNodeRef>
+      </lane>
+      <lane id="Lane_SistemExisting" name="Sistem Existing">
+        <flowNodeRef>Task_SYS_TampilkanForm</flowNodeRef>
+        <flowNodeRef>End_SYS</flowNodeRef>
+        <flowNodeRef>Task_SYS_TambahStok</flowNodeRef>
+      </lane>
+      <lane id="Lane_StaffGudang" name="Staff Gudang">
+        <flowNodeRef>Start_SG</flowNodeRef>
+        <flowNodeRef>Task_SG_TerimaBarang</flowNodeRef>
+        <flowNodeRef>Task_SG_SimpanRak</flowNodeRef>
+        <flowNodeRef>Task_SG_AksesInbound</flowNodeRef>
+        <flowNodeRef>Task_SG_InputKuantitas</flowNodeRef>
+      </lane>
+    </laneSet>
+    <startEvent id="Start_SG" name="Menunggu kiriman barang dari Vendor">
+      <outgoing>SF_SG00</outgoing>
+      <messageEventDefinition id="MED_01" />
+    </startEvent>
+    <manualTask id="Task_SG_TerimaBarang" name="Menerima barang fisik &#38; mencocokkan jumlah dengan Surat Jalan">
+      <incoming>SF_SG00</incoming>
+      <outgoing>SF_SG01</outgoing>
+    </manualTask>
+    <manualTask id="Task_SG_SimpanRak" name="Menyimpan barang ke rak di gudang">
+      <incoming>SF_SG01</incoming>
+      <outgoing>SF_SG02</outgoing>
+    </manualTask>
+    <userTask id="Task_SG_AksesInbound" name="Mengakses menu Inbound di Sistem Existing">
+      <incoming>SF_SG02</incoming>
+      <outgoing>SF_SG03</outgoing>
+    </userTask>
+    <serviceTask id="Task_SYS_TampilkanForm" name="Menampilkan Form Inbound Standar">
+      <incoming>SF_SG03</incoming>
+      <outgoing>SF_SG04</outgoing>
+    </serviceTask>
+    <userTask id="Task_SG_InputKuantitas" name="Menginput total penerimaan barang (hanya kuantitas global)">
+      <incoming>SF_SG04</incoming>
+      <outgoing>SF_SG05</outgoing>
+    </userTask>
+    <userTask id="Task_SA_CekData" name="Mengecek data stok baru di sistem &#38; memperbarui Master Data Item (jika SKU baru)">
+      <incoming>SF_SG06</incoming>
+      <outgoing>SF_SG07</outgoing>
+    </userTask>
+    <sequenceFlow id="SF_SG00" sourceRef="Start_SG" targetRef="Task_SG_TerimaBarang" />
+    <sequenceFlow id="SF_SG01" sourceRef="Task_SG_TerimaBarang" targetRef="Task_SG_SimpanRak" />
+    <sequenceFlow id="SF_SG02" sourceRef="Task_SG_SimpanRak" targetRef="Task_SG_AksesInbound" />
+    <sequenceFlow id="SF_SG03" sourceRef="Task_SG_AksesInbound" targetRef="Task_SYS_TampilkanForm" />
+    <sequenceFlow id="SF_SG04" sourceRef="Task_SYS_TampilkanForm" targetRef="Task_SG_InputKuantitas" />
+    <sequenceFlow id="SF_SG05" sourceRef="Task_SG_InputKuantitas" targetRef="Task_SYS_TambahStok" />
+    <sequenceFlow id="SF_SG06" sourceRef="Task_SYS_TambahStok" targetRef="Task_SA_CekData" />
+    <sequenceFlow id="SF_SG07" sourceRef="Task_SA_CekData" targetRef="End_SYS" />
+    <endEvent id="End_SYS" name="Proses Inbound selesai">
+      <incoming>SF_SG07</incoming>
+    </endEvent>
+    <serviceTask id="Task_SYS_TambahStok" name="Menambah stok global produk di database">
+      <incoming>SF_SG05</incoming>
+      <outgoing>SF_SG06</outgoing>
+    </serviceTask>
+  </process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collab_Inbound_AsIs">
+      <bpmndi:BPMNShape id="Shape_Pool_Satglow" bpmnElement="Pool_Satglow" isHorizontal="true">
+        <dc:Bounds x="160" y="280" width="1270" height="620" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_StaffAdmin" bpmnElement="Lane_StaffAdmin" isHorizontal="true">
+        <dc:Bounds x="190" y="680" width="1240" height="220" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_SistemExisting" bpmnElement="Lane_SistemExisting" isHorizontal="true">
+        <dc:Bounds x="190" y="480" width="1240" height="200" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_StaffGudang" bpmnElement="Lane_StaffGudang" isHorizontal="true">
+        <dc:Bounds x="190" y="280" width="1240" height="200" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_SG" bpmnElement="Start_SG">
+        <dc:Bounds x="238" y="362" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="220" y="403" width="73" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SG_TerimaBarang" bpmnElement="Task_SG_TerimaBarang">
+        <dc:Bounds x="320" y="340" width="180" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SG_SimpanRak" bpmnElement="Task_SG_SimpanRak">
+        <dc:Bounds x="560" y="340" width="180" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SG_AksesInbound" bpmnElement="Task_SG_AksesInbound">
+        <dc:Bounds x="800" y="340" width="180" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SYS_TampilkanForm" bpmnElement="Task_SYS_TampilkanForm">
+        <dc:Bounds x="940" y="540" width="180" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SG_InputKuantitas" bpmnElement="Task_SG_InputKuantitas">
+        <dc:Bounds x="1080" y="340" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SA_CekData" bpmnElement="Task_SA_CekData">
+        <dc:Bounds x="1120" y="730" width="200" height="100" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_SYS" bpmnElement="End_SYS">
+        <dc:Bounds x="1352" y="562" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1332" y="526" width="78" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SYS_TambahStok" bpmnElement="Task_SYS_TambahStok">
+        <dc:Bounds x="1130" y="540" width="180" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_SF_SG00" bpmnElement="SF_SG00">
+        <di:waypoint x="274" y="380" />
+        <di:waypoint x="320" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_SG01" bpmnElement="SF_SG01">
+        <di:waypoint x="500" y="380" />
+        <di:waypoint x="560" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_SG02" bpmnElement="SF_SG02">
+        <di:waypoint x="740" y="380" />
+        <di:waypoint x="800" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_SG03" bpmnElement="SF_SG03">
+        <di:waypoint x="890" y="420" />
+        <di:waypoint x="890" y="580" />
+        <di:waypoint x="940" y="580" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_SG04" bpmnElement="SF_SG04">
+        <di:waypoint x="1055" y="540" />
+        <di:waypoint x="1055" y="380" />
+        <di:waypoint x="1080" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_SG05" bpmnElement="SF_SG05">
+        <di:waypoint x="1190" y="420" />
+        <di:waypoint x="1190" y="540" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_SG06" bpmnElement="SF_SG06">
+        <di:waypoint x="1230" y="620" />
+        <di:waypoint x="1230" y="730" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_SG07" bpmnElement="SF_SG07">
+        <di:waypoint x="1320" y="780" />
+        <di:waypoint x="1370" y="780" />
+        <di:waypoint x="1370" y="598" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Pool_Vendor" bpmnElement="Pool_Vendor" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="1270" height="160" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_Vendor" bpmnElement="Start_Vendor">
+        <dc:Bounds x="240" y="122" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="214" y="163" width="89" height="53" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Vendor" bpmnElement="End_Vendor">
+        <dc:Bounds x="614" y="122" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="594" y="163" width="76" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_05zc01s_di" bpmnElement="Task_Vendor_KirimBarang">
+        <dc:Bounds x="340" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_SF_V01" bpmnElement="SF_V01">
+        <di:waypoint x="276" y="140" />
+        <di:waypoint x="340" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_SF_V02" bpmnElement="SF_V02">
+        <di:waypoint x="440" y="140" />
+        <di:waypoint x="614" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_01" bpmnElement="Assoc_01">
+        <di:waypoint x="650" y="340" />
+        <di:waypoint x="650" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Annotation_01" bpmnElement="Annotation_01">
+        <dc:Bounds x="560" y="280" width="200" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_MF_01" bpmnElement="MF_01">
+        <di:waypoint x="390" y="180" />
+        <di:waypoint x="390" y="340" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="396" y="245" width="67" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

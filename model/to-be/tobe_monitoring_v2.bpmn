@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_SatglowWMS_Monitoring_ToBe" targetNamespace="http://satglow.com/wms/bpmn" exporter="Camunda Modeler" exporterVersion="5.46.1">
+  <bpmn:collaboration id="Collaboration_WMS_Monitoring_ToBe">
+    <bpmn:participant id="Pool_Satglow" name="Internal Satglow" processRef="Process_Satglow_monitoring" />
+    <bpmn:participant id="Pool_Marketplace" name="Entitas Eksternal (Marketplace / TikTok / Shopee)" processRef="Process_Marketplace_monitoring_sg" />
+    <bpmn:messageFlow id="MF_SinkronHarga" name="API Sinkronisasi Harga" sourceRef="ThrowEvent_SinkronHarga" targetRef="EndEvent_Marketplace" />
+    <bpmn:textAnnotation id="Annotation_UpdateHarga">
+      <bpmn:text>Perubahan harga hanya berlaku untuk ID Batch tertentu yang berisiko. Batch lain tidak terpengaruh.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_UpdateHarga" sourceRef="Task_UpdateHargaClearance" targetRef="Annotation_UpdateHarga" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Marketplace_monitoring_sg" name="Proses Marketplace" isExecutable="false">
+    <bpmn:endEvent id="EndEvent_Marketplace" name="Menerima Update Harga">
+      <bpmn:messageEventDefinition id="MED_HargaClearance_In" />
+    </bpmn:endEvent>
+  </bpmn:process>
+  <bpmn:process id="Process_Satglow_monitoring" name="Proses 6 - AI Monitoring &#38; Clearance Sale" isExecutable="true" camunda:historyTimeToLive="30" camunda:tenantId="55555">
+    <bpmn:laneSet id="LaneSet_Satglow">
+      <bpmn:lane id="Lane_SistemWMS" name="Sistem WMS">
+        <bpmn:flowNodeRef>StartEvent_CronJob</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_QueryBatch</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_AdaStokBerisiko</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_HarianSelesai</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AI_AnalisisVelocity</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_GenerateNotifikasi</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_TutupNotifikasi</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_Ditolak</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_UpdateHargaClearance</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ThrowEvent_SinkronHarga</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_MitigasiSukses</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Manager" name="Manager WMS">
+        <bpmn:flowNodeRef>Task_TerimaNotif</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_ManagerSetuju</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_KonfirmasiApproval</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="StartEvent_CronJob" name="Mulai Simulasi Monitoring">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="stokBerisiko" label="Simulasi DB: Apakah ada Batch &#60; 90 Hari Kedaluwarsa?" type="boolean" defaultValue="true" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>SF_Cron_Query</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Task_QueryBatch" name="Query DB ID Batch Menuju Kedaluwarsa" camunda:expression="${true}">
+      <bpmn:incoming>SF_Cron_Query</bpmn:incoming>
+      <bpmn:outgoing>SF_Query_GW</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="GW_AdaStokBerisiko" name="Stok Berisiko?">
+      <bpmn:incoming>SF_Query_GW</bpmn:incoming>
+      <bpmn:outgoing>SF_GW_Tidak</bpmn:outgoing>
+      <bpmn:outgoing>SF_GW_Ya</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="EndEvent_HarianSelesai" name="Selesai (Aman)">
+      <bpmn:incoming>SF_GW_Tidak</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:businessRuleTask id="Task_AI_AnalisisVelocity" name="AI Engine: Analisis Velocity" camunda:expression="${true}">
+      <bpmn:incoming>SF_GW_Ya</bpmn:incoming>
+      <bpmn:outgoing>SF_AI_Notif</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:serviceTask id="Task_GenerateNotifikasi" name="Generate Notifikasi Rekomendasi" camunda:expression="${true}">
+      <bpmn:incoming>SF_AI_Notif</bpmn:incoming>
+      <bpmn:outgoing>SF_Notif_TerimaNotif</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="Task_TerimaNotif" name="Tinjau Notifikasi AI Analytics" camunda:formRef="Form_ReviewPromo" camunda:formRefBinding="latest" camunda:candidateGroups="managerSG">
+      <bpmn:incoming>SF_Notif_TerimaNotif</bpmn:incoming>
+      <bpmn:outgoing>SF_TerimaNotif_GW</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="GW_ManagerSetuju" name="Disetujui?">
+      <bpmn:incoming>SF_TerimaNotif_GW</bpmn:incoming>
+      <bpmn:outgoing>SF_GW_Tolak</bpmn:outgoing>
+      <bpmn:outgoing>SF_GW_Setuju</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_TutupNotifikasi" name="Tutup Notifikasi" camunda:expression="${true}">
+      <bpmn:incoming>SF_GW_Tolak</bpmn:incoming>
+      <bpmn:outgoing>SF_Tutup_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="EndEvent_Ditolak" name="Ditolak">
+      <bpmn:incoming>SF_Tutup_End</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="Task_KonfirmasiApproval" name="Konfirmasi Approval Promo" camunda:candidateGroups="managerSG">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="pesanSistem" label="Status Sistem" type="string" defaultValue="Data siap di-push ke Marketplace. Silakan klik Complete." />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>SF_GW_Setuju</bpmn:incoming>
+      <bpmn:outgoing>SF_Approval_UpdateHarga</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="Task_UpdateHargaClearance" name="Update Harga Clearance di DB" camunda:expression="${true}">
+      <bpmn:incoming>SF_Approval_UpdateHarga</bpmn:incoming>
+      <bpmn:outgoing>SF_UpdateHarga_Throw</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:intermediateThrowEvent id="ThrowEvent_SinkronHarga" name="Sinkron API">
+      <bpmn:incoming>SF_UpdateHarga_Throw</bpmn:incoming>
+      <bpmn:outgoing>SF_Throw_End</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MED_HargaClearance_Out" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:endEvent id="EndEvent_MitigasiSukses" name="Mitigasi Sukses">
+      <bpmn:incoming>SF_Throw_End</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="SF_Cron_Query" sourceRef="StartEvent_CronJob" targetRef="Task_QueryBatch" />
+    <bpmn:sequenceFlow id="SF_Query_GW" sourceRef="Task_QueryBatch" targetRef="GW_AdaStokBerisiko" />
+    <bpmn:sequenceFlow id="SF_GW_Tidak" name="Tidak" sourceRef="GW_AdaStokBerisiko" targetRef="EndEvent_HarianSelesai">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${stokBerisiko == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="SF_GW_Ya" name="Ya" sourceRef="GW_AdaStokBerisiko" targetRef="Task_AI_AnalisisVelocity">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${stokBerisiko == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="SF_AI_Notif" sourceRef="Task_AI_AnalisisVelocity" targetRef="Task_GenerateNotifikasi" />
+    <bpmn:sequenceFlow id="SF_Notif_TerimaNotif" sourceRef="Task_GenerateNotifikasi" targetRef="Task_TerimaNotif" />
+    <bpmn:sequenceFlow id="SF_TerimaNotif_GW" sourceRef="Task_TerimaNotif" targetRef="GW_ManagerSetuju" />
+    <bpmn:sequenceFlow id="SF_GW_Tolak" name="Tolak" sourceRef="GW_ManagerSetuju" targetRef="Task_TutupNotifikasi">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${managerSetuju == 'tolak'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="SF_GW_Setuju" name="Setuju" sourceRef="GW_ManagerSetuju" targetRef="Task_KonfirmasiApproval">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${managerSetuju == 'setuju'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="SF_Tutup_End" sourceRef="Task_TutupNotifikasi" targetRef="EndEvent_Ditolak" />
+    <bpmn:sequenceFlow id="SF_Approval_UpdateHarga" sourceRef="Task_KonfirmasiApproval" targetRef="Task_UpdateHargaClearance" />
+    <bpmn:sequenceFlow id="SF_UpdateHarga_Throw" sourceRef="Task_UpdateHargaClearance" targetRef="ThrowEvent_SinkronHarga" />
+    <bpmn:sequenceFlow id="SF_Throw_End" sourceRef="ThrowEvent_SinkronHarga" targetRef="EndEvent_MitigasiSukses" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SatglowWMS_Monitoring_ToBe">
+    <bpmndi:BPMNPlane id="BPMNPlane_SatglowWMS_Monitoring_ToBe" bpmnElement="Collaboration_WMS_Monitoring_ToBe">
+      <bpmndi:BPMNShape id="Participant_Satglow_di" bpmnElement="Pool_Satglow" isHorizontal="true">
+        <dc:Bounds x="120" y="200" width="1120" height="460" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Manager_di" bpmnElement="Lane_Manager" isHorizontal="true">
+        <dc:Bounds x="150" y="420" width="1090" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_SistemWMS_di" bpmnElement="Lane_SistemWMS" isHorizontal="true">
+        <dc:Bounds x="150" y="200" width="1090" height="220" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_CronJob_di" bpmnElement="StartEvent_CronJob">
+        <dc:Bounds x="200" y="302" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="182" y="345" width="73" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_QueryBatch_di" bpmnElement="Task_QueryBatch">
+        <dc:Bounds x="280" y="280" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_AdaStokBerisiko_di" bpmnElement="GW_AdaStokBerisiko" isMarkerVisible="true">
+        <dc:Bounds x="420" y="295" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="410" y="352" width="71" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_HarianSelesai_di" bpmnElement="EndEvent_HarianSelesai">
+        <dc:Bounds x="427" y="240" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="408" y="221" width="75" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AI_AnalisisVelocity_di" bpmnElement="Task_AI_AnalisisVelocity">
+        <dc:Bounds x="510" y="280" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_GenerateNotifikasi_di" bpmnElement="Task_GenerateNotifikasi">
+        <dc:Bounds x="650" y="280" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_TerimaNotif_di" bpmnElement="Task_TerimaNotif">
+        <dc:Bounds x="650" y="450" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_ManagerSetuju_di" bpmnElement="GW_ManagerSetuju" isMarkerVisible="true">
+        <dc:Bounds x="785" y="465" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="786" y="522" width="49" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_TutupNotifikasi_di" bpmnElement="Task_TutupNotifikasi">
+        <dc:Bounds x="760" y="300" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Ditolak_di" bpmnElement="EndEvent_Ditolak">
+        <dc:Bounds x="792" y="240" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="793" y="221" width="35" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_KonfirmasiApproval_di" bpmnElement="Task_KonfirmasiApproval">
+        <dc:Bounds x="880" y="450" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_UpdateHargaClearance_di" bpmnElement="Task_UpdateHargaClearance">
+        <dc:Bounds x="920" y="280" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ThrowEvent_SinkronHarga_di" bpmnElement="ThrowEvent_SinkronHarga">
+        <dc:Bounds x="1082" y="302" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1072" y="345" width="58" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_MitigasiSukses_di" bpmnElement="EndEvent_MitigasiSukses">
+        <dc:Bounds x="1162" y="302" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1142" y="345" width="76" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SF_Cron_Query_di" bpmnElement="SF_Cron_Query">
+        <di:waypoint x="236" y="320" />
+        <di:waypoint x="280" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_Query_GW_di" bpmnElement="SF_Query_GW">
+        <di:waypoint x="380" y="320" />
+        <di:waypoint x="420" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_GW_Tidak_di" bpmnElement="SF_GW_Tidak">
+        <di:waypoint x="445" y="295" />
+        <di:waypoint x="445" y="276" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="447" y="282" width="26" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_GW_Ya_di" bpmnElement="SF_GW_Ya">
+        <di:waypoint x="470" y="320" />
+        <di:waypoint x="510" y="320" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="484" y="302" width="13" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_AI_Notif_di" bpmnElement="SF_AI_Notif">
+        <di:waypoint x="610" y="320" />
+        <di:waypoint x="650" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_Notif_TerimaNotif_di" bpmnElement="SF_Notif_TerimaNotif">
+        <di:waypoint x="700" y="360" />
+        <di:waypoint x="700" y="450" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_TerimaNotif_GW_di" bpmnElement="SF_TerimaNotif_GW">
+        <di:waypoint x="750" y="490" />
+        <di:waypoint x="785" y="490" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_GW_Tolak_di" bpmnElement="SF_GW_Tolak">
+        <di:waypoint x="810" y="465" />
+        <di:waypoint x="810" y="380" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="817" y="420" width="26" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_GW_Setuju_di" bpmnElement="SF_GW_Setuju">
+        <di:waypoint x="835" y="490" />
+        <di:waypoint x="880" y="490" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="842" y="472" width="31" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_Tutup_End_di" bpmnElement="SF_Tutup_End">
+        <di:waypoint x="810" y="300" />
+        <di:waypoint x="810" y="276" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_Approval_UpdateHarga_di" bpmnElement="SF_Approval_UpdateHarga">
+        <di:waypoint x="930" y="450" />
+        <di:waypoint x="930" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_UpdateHarga_Throw_di" bpmnElement="SF_UpdateHarga_Throw">
+        <di:waypoint x="1020" y="320" />
+        <di:waypoint x="1082" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_Throw_End_di" bpmnElement="SF_Throw_End">
+        <di:waypoint x="1118" y="320" />
+        <di:waypoint x="1162" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Participant_Marketplace_di" bpmnElement="Pool_Marketplace" isHorizontal="true">
+        <dc:Bounds x="120" y="80" width="1120" height="100" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Marketplace_di" bpmnElement="EndEvent_Marketplace">
+        <dc:Bounds x="1082" y="112" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1059" y="82" width="83" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Annotation_UpdateHarga_di" bpmnElement="Annotation_UpdateHarga">
+        <dc:Bounds x="920" y="210" width="170" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="MF_SinkronHarga_di" bpmnElement="MF_SinkronHarga">
+        <di:waypoint x="1100" y="302" />
+        <di:waypoint x="1100" y="148" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1107" y="206" width="86" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_UpdateHarga_di" bpmnElement="Assoc_UpdateHarga">
+        <di:waypoint x="979" y="280" />
+        <di:waypoint x="994" y="250" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

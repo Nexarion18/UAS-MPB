@@ -1,0 +1,24 @@
+{
+  "components": [
+    {
+      "label": "Notifikasi AI: Stok Berisiko Terdeteksi",
+      "text": "Sistem mendeteksi adanya Batch produk yang akan kedaluwarsa dalam waktu kurang dari 90 hari. Kecepatan penjualan (velocity) saat ini terlalu lambat.\n\n**Rekomendasi AI:** Segera terapkan *Clearance Sale* (Diskon Cuci Gudang) untuk batch ini agar tidak menjadi dead stock.",
+      "type": "text"
+    },
+    {
+      "values": [
+        { "label": "Setujui Rekomendasi (Terapkan Clearance Sale)", "value": "setuju" },
+        { "label": "Tolak / Abaikan (Biarkan Harga Normal)", "value": "tolak" }
+      ],
+      "label": "Keputusan Manager WMS",
+      "type": "radio",
+      "id": "Field_managerSetuju",
+      "key": "managerSetuju",
+      "validate": { "required": true }
+    }
+  ],
+  "type": "default",
+  "id": "Form_ReviewPromo",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20.0"
+}

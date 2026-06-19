@@ -1,0 +1,38 @@
+{
+  "components": [
+    {
+      "label": "Formulir Inbound WMS",
+      "text": "Silakan masukkan detail barang yang diterima dari Vendor sesuai dengan Surat Jalan.",
+      "type": "text"
+    },
+    {
+      "label": "Nama Produk / Barang",
+      "type": "textfield",
+      "id": "Field_namaBarang",
+      "key": "namaBarang",
+      "validate": { "required": true }
+    },
+    {
+      "label": "Kuantitas Diterima (Pcs)",
+      "type": "number",
+      "id": "Field_qtyBarang",
+      "key": "qtyBarang",
+      "validate": { "required": true, "min": 1 }
+    },
+    {
+      "values": [
+        { "label": "Valid (Format Expired Date Sesuai)", "value": true },
+        { "label": "Tidak Valid (Format Salah / Data Kurang)", "value": false }
+      ],
+      "label": "Simulasi Sistem: Apakah input ini valid?",
+      "type": "radio",
+      "id": "Field_isValid",
+      "key": "isValid",
+      "validate": { "required": true }
+    }
+  ],
+  "type": "default",
+  "id": "Form_InputInbound",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20.0"
+}

@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_InboundWMS" targetNamespace="http://satglow.wms/inbound" exporter="Camunda Modeler" exporterVersion="5.46.1">
+  <bpmn:collaboration id="Collaboration_Inbound">
+    <bpmn:participant id="Pool_Vendor" name="Vendor" processRef="Process_Vendor" />
+    <bpmn:participant id="Pool_Satglow" name="Satglow" processRef="Process_Satglow_inbound" />
+    <bpmn:messageFlow id="Flow_0vz3n1t" sourceRef="Task_TerimaBarang" targetRef="StartEvent_Vendor" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Vendor" name="Vendor" isExecutable="false">
+    <bpmn:startEvent id="StartEvent_Vendor" name="Mengirimkan Surat Jalan &#38; Barang Fisik">
+      <bpmn:outgoing>Flow_12x78wo</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:endEvent id="Event_1dfsm5k">
+      <bpmn:incoming>Flow_12x78wo</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_12x78wo" sourceRef="StartEvent_Vendor" targetRef="Event_1dfsm5k" />
+  </bpmn:process>
+  <bpmn:process id="Process_Satglow_inbound" name="Proses 8 - Inbound Satglow" isExecutable="true" camunda:historyTimeToLive="30" camunda:tenantId="55555">
+    <bpmn:laneSet id="LaneSet_Satglow">
+      <bpmn:lane id="Lane_SistemWMS" name="Sistem WMS">
+        <bpmn:flowNodeRef>Task_GenerateForm</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_BarangMasuk</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AlokasiIDBatch</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SimpanDatabase</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_TampilkanAlertError</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_ValidasiField</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_StaffGudang" name="Staff Gudang">
+        <bpmn:flowNodeRef>Event_0ax0b3j</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_TerimaBarang</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AksesModulInbound</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_InputFieldMandatory</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_RevisInput</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Event_0ax0b3j" name="Mulai Proses Inbound">
+      <bpmn:outgoing>Flow_0g357fd</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_TerimaBarang" name="Menerima barang fisik" camunda:candidateGroups="gudangSG">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="konfirmasiTerima" label="Ketik OK jika fisik barang dari Vendor sudah diterima:" type="string" defaultValue="OK" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_0g357fd</bpmn:incoming>
+      <bpmn:outgoing>Flow_1_to_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_AksesModulInbound" name="Mengakses modul Inbound di Sistem WMS" camunda:candidateGroups="gudangSG">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="infoModul" label="Status" type="string" defaultValue="Klik Complete untuk membuka modul Inbound." />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1_to_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_2_to_GenerateForm</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="Task_GenerateForm" name="Men-generate Form Inbound Digital">
+      <bpmn:extensionElements>
+        <camunda:connector>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="url">https://discordapp.com/api/webhooks/1517172290822082762/GzB9eiHib3Dmf-LzR4_sPdlX1e1_uUZ2RP_wbuw3CLxiay-Xz8dK-BIOFt1VIqHAyDfl</camunda:inputParameter>
+            <camunda:inputParameter name="method">POST</camunda:inputParameter>
+            <camunda:inputParameter name="headers">
+              <camunda:map>
+                <camunda:entry key="Content-Type">application/json</camunda:entry>
+              </camunda:map>
+            </camunda:inputParameter>
+          </camunda:inputOutput>
+          <camunda:connectorId>http-connector</camunda:connectorId>
+        </camunda:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_2_to_GenerateForm</bpmn:incoming>
+      <bpmn:outgoing>Flow_GenerateForm_to_Input</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="Task_InputFieldMandatory" name="Input data barang" camunda:formRef="Form_InputInbound" camunda:formRefBinding="latest" camunda:candidateGroups="gudangSG">
+      <bpmn:incoming>Flow_GenerateForm_to_Input</bpmn:incoming>
+      <bpmn:incoming>Flow_Revis_to_Input</bpmn:incoming>
+      <bpmn:outgoing>Flow_Input_to_GW</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="GW_ValidasiField" name="Apakah semua field terisi valid?">
+      <bpmn:incoming>Flow_Input_to_GW</bpmn:incoming>
+      <bpmn:outgoing>Flow_GW_Valid</bpmn:outgoing>
+      <bpmn:outgoing>Flow_GW_TidakValid</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_TampilkanAlertError" name="Menampilkan alert error" camunda:expression="${true}">
+      <bpmn:incoming>Flow_GW_TidakValid</bpmn:incoming>
+      <bpmn:outgoing>Flow_Alert_to_Revis</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="Task_RevisInput" name="Revisi field yang tidak valid" camunda:candidateGroups="gudangSG">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="infoError" label="Peringatan Sistem!" type="string" defaultValue="Format tidak valid! Klik Complete untuk mengulang input." />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Alert_to_Revis</bpmn:incoming>
+      <bpmn:outgoing>Flow_Revis_to_Input</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="Task_AlokasiIDBatch" name="Mengalokasikan ID Batch unik berdasarkan Tanggal Kedaluwarsa" camunda:expression="${true}">
+      <bpmn:incoming>Flow_GW_Valid</bpmn:incoming>
+      <bpmn:outgoing>Flow_Batch_to_DB</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_SimpanDatabase" name="Menyimpan data Inbound ke Database" camunda:expression="${true}">
+      <bpmn:incoming>Flow_Batch_to_DB</bpmn:incoming>
+      <bpmn:outgoing>Flow_DB_to_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="EndEvent_BarangMasuk" name="Barang berhasil masuk dengan track record per batch yang akurat">
+      <bpmn:incoming>Flow_DB_to_End</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_0g357fd" sourceRef="Event_0ax0b3j" targetRef="Task_TerimaBarang" />
+    <bpmn:sequenceFlow id="Flow_1_to_2" sourceRef="Task_TerimaBarang" targetRef="Task_AksesModulInbound" />
+    <bpmn:sequenceFlow id="Flow_2_to_GenerateForm" sourceRef="Task_AksesModulInbound" targetRef="Task_GenerateForm" />
+    <bpmn:sequenceFlow id="Flow_GenerateForm_to_Input" sourceRef="Task_GenerateForm" targetRef="Task_InputFieldMandatory" />
+    <bpmn:sequenceFlow id="Flow_Input_to_GW" sourceRef="Task_InputFieldMandatory" targetRef="GW_ValidasiField" />
+    <bpmn:sequenceFlow id="Flow_GW_Valid" name="Valid" sourceRef="GW_ValidasiField" targetRef="Task_AlokasiIDBatch">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isValid == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_GW_TidakValid" name="Tidak Valid" sourceRef="GW_ValidasiField" targetRef="Task_TampilkanAlertError">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isValid == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Alert_to_Revis" sourceRef="Task_TampilkanAlertError" targetRef="Task_RevisInput" />
+    <bpmn:sequenceFlow id="Flow_Revis_to_Input" name="Kembali ke revisi" sourceRef="Task_RevisInput" targetRef="Task_InputFieldMandatory" />
+    <bpmn:sequenceFlow id="Flow_Batch_to_DB" sourceRef="Task_AlokasiIDBatch" targetRef="Task_SimpanDatabase" />
+    <bpmn:sequenceFlow id="Flow_DB_to_End" sourceRef="Task_SimpanDatabase" targetRef="EndEvent_BarangMasuk" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_Inbound">
+      <bpmndi:BPMNShape id="Shape_Pool_Vendor" bpmnElement="Pool_Vendor" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="970" height="100" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_StartVendor" bpmnElement="StartEvent_Vendor">
+        <dc:Bounds x="222" y="122" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="286" y="80" width="67" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1dfsm5k_di" bpmnElement="Event_1dfsm5k">
+        <dc:Bounds x="362" y="122" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_12x78wo_di" bpmnElement="Flow_12x78wo">
+        <di:waypoint x="258" y="140" />
+        <di:waypoint x="362" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_Pool_Satglow" bpmnElement="Pool_Satglow" isHorizontal="true">
+        <dc:Bounds x="160" y="200" width="970" height="560" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Staff" bpmnElement="Lane_StaffGudang" isHorizontal="true">
+        <dc:Bounds x="190" y="200" width="940" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_WMS" bpmnElement="Lane_SistemWMS" isHorizontal="true">
+        <dc:Bounds x="190" y="440" width="940" height="320" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0ax0b3j_di" bpmnElement="Event_0ax0b3j">
+        <dc:Bounds x="232" y="282" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="212" y="325" width="76" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TerimaBarang" bpmnElement="Task_TerimaBarang">
+        <dc:Bounds x="310" y="270" width="120" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_AksesModul" bpmnElement="Task_AksesModulInbound">
+        <dc:Bounds x="490" y="270" width="130" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GenerateForm" bpmnElement="Task_GenerateForm">
+        <dc:Bounds x="490" y="490" width="130" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_InputField" bpmnElement="Task_InputFieldMandatory">
+        <dc:Bounds x="670" y="260" width="140" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_Valid" bpmnElement="GW_ValidasiField" isMarkerVisible="true">
+        <dc:Bounds x="715" y="505" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="749" y="553" width="82" height="53" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_AlertError" bpmnElement="Task_TampilkanAlertError">
+        <dc:Bounds x="940" y="500" width="120" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_RevisInput" bpmnElement="Task_RevisInput">
+        <dc:Bounds x="940" y="270" width="120" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_AlokasiBatch" bpmnElement="Task_AlokasiIDBatch">
+        <dc:Bounds x="690" y="670" width="140" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_SimpanDB" bpmnElement="Task_SimpanDatabase">
+        <dc:Bounds x="490" y="670" width="130" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndBarang" bpmnElement="EndEvent_BarangMasuk">
+        <dc:Bounds x="322" y="632" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="297" y="675" width="88" height="53" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_0g357fd_di" bpmnElement="Flow_0g357fd">
+        <di:waypoint x="268" y="300" />
+        <di:waypoint x="310" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_1_2" bpmnElement="Flow_1_to_2">
+        <di:waypoint x="430" y="300" />
+        <di:waypoint x="490" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_2_Gen" bpmnElement="Flow_2_to_GenerateForm">
+        <di:waypoint x="555" y="330" />
+        <di:waypoint x="555" y="490" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Gen_Input" bpmnElement="Flow_GenerateForm_to_Input">
+        <di:waypoint x="620" y="520" />
+        <di:waypoint x="640" y="520" />
+        <di:waypoint x="640" y="295" />
+        <di:waypoint x="670" y="295" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Input_GW" bpmnElement="Flow_Input_to_GW">
+        <di:waypoint x="740" y="330" />
+        <di:waypoint x="740" y="505" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_GW_Valid" bpmnElement="Flow_GW_Valid">
+        <di:waypoint x="740" y="555" />
+        <di:waypoint x="740" y="613" />
+        <di:waypoint x="760" y="613" />
+        <di:waypoint x="760" y="670" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="768" y="636" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_GW_Invalid" bpmnElement="Flow_GW_TidakValid">
+        <di:waypoint x="765" y="530" />
+        <di:waypoint x="940" y="530" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="828" y="512" width="54" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Alert_Revis" bpmnElement="Flow_Alert_to_Revis">
+        <di:waypoint x="1000" y="500" />
+        <di:waypoint x="1000" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Revis_Input" bpmnElement="Flow_Revis_to_Input">
+        <di:waypoint x="940" y="300" />
+        <di:waypoint x="810" y="300" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="838" y="282" width="84" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Batch_DB" bpmnElement="Flow_Batch_to_DB">
+        <di:waypoint x="690" y="700" />
+        <di:waypoint x="620" y="700" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_DB_End" bpmnElement="Flow_DB_to_End">
+        <di:waypoint x="490" y="700" />
+        <di:waypoint x="424" y="700" />
+        <di:waypoint x="424" y="650" />
+        <di:waypoint x="358" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0vz3n1t_di" bpmnElement="Flow_0vz3n1t">
+        <di:waypoint x="370" y="270" />
+        <di:waypoint x="370" y="214" />
+        <di:waypoint x="240" y="214" />
+        <di:waypoint x="240" y="158" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

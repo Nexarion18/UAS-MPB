@@ -1,0 +1,31 @@
+{
+  "components": [
+    {
+      "label": "Tinjau Draf Purchase Order (PO)",
+      "text": "# Rekomendasi Restock AI\nMesin peramalan mendeteksi bahwa stok produk menipis berdasarkan kecepatan penjualan (velocity) 30 hari terakhir.",
+      "type": "text"
+    },
+    {
+      "label": "Rekomendasi Jumlah Kuantitas Restok dari AI",
+      "type": "number",
+      "id": "Field_jumlahRestok",
+      "key": "jumlahRestok",
+      "disabled": true
+    },
+    {
+      "values": [
+        { "label": "Setujui draf PO dan teruskan ke Supplier", "value": "setuju" },
+        { "label": "Tolak draf rekomendasi restock", "value": "tolak" }
+      ],
+      "label": "Keputusan Manajer",
+      "type": "radio",
+      "id": "Field_managerPODecision",
+      "key": "managerPODecision",
+      "validate": { "required": true }
+    }
+  ],
+  "type": "default",
+  "id": "Form_ReviewPO",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20.0"
+}

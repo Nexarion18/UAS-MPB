@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_StockOpname" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.46.1">
+  <bpmn:collaboration id="Collaboration_StockOpname" name="Stock Opname Multi-Gudang Collaboration">
+    <bpmn:participant id="Participant_Satglow" name="Internal Satglow" processRef="Process_StockOpname" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_StockOpname" name="Proses 5 - Stock Opname Multi-Gudang (Audit Stok)" isExecutable="true" camunda:historyTimeToLive="30" camunda:tenantId="55555">
+    <bpmn:laneSet id="LaneSet_Satglow">
+      <bpmn:lane id="Lane_Manager" name="Manager WMS">
+        <bpmn:flowNodeRef>StartEvent_PerintahOpname</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ApproveStockAdjustment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_ApprovalAdjustment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_AdjustmentDitolak</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_SistemWMS" name="Sistem WMS (Otomatisasi)">
+        <bpmn:flowNodeRef>EndEvent_OpnameSukses</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_FreezeStok</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_CekSelisihStok</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ExecuteFinalAdjustment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_AdjustmentSelesai</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_OtomatisKomparasiStok</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_StaffGudang" name="Staff Gudang">
+        <bpmn:flowNodeRef>Task_ScanFisikBarang</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="StartEvent_PerintahOpname" name="Perintah Opname dari Manager">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="adaSelisih" label="Simulasi Komparasi Sistem: Apakah terdeteksi selisih stok nantinya?" type="boolean" defaultValue="true" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>SF_Start_to_Freeze</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Task_FreezeStok" name="Sistem Membekukan Stok Sementara" camunda:expression="${true}">
+      <bpmn:incoming>SF_Start_to_Freeze</bpmn:incoming>
+      <bpmn:outgoing>SF_Freeze_to_Scan</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="Task_ScanFisikBarang" name="Scan Fisik Barang oleh Staff Gudang" camunda:formRef="Form_ScanFisik" camunda:formRefBinding="latest" camunda:candidateGroups="gudangSG">
+      <bpmn:incoming>SF_Freeze_to_Scan</bpmn:incoming>
+      <bpmn:outgoing>SF_Scan_to_Komparasi</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="GW_CekSelisihStok" name="Ada Selisih Stok?">
+      <bpmn:incoming>SF_Komparasi_to_GW1</bpmn:incoming>
+      <bpmn:outgoing>SF_GW1_to_OpnameSukses</bpmn:outgoing>
+      <bpmn:outgoing>SF_GW1_to_ApproveAdjustment</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="EndEvent_OpnameSukses" name="Opname Sukses (Stok Sesuai)">
+      <bpmn:incoming>SF_GW1_to_OpnameSukses</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="Task_ApproveStockAdjustment" name="Approval Stock Adjustment oleh Manager" camunda:candidateGroups="managerSG">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="batchID" label="Laporan Gudang: Batch ID" type="string">
+            <camunda:validation>
+              <camunda:constraint name="readonly" />
+            </camunda:validation>
+          </camunda:formField>
+          <camunda:formField id="jumlahFisik" label="Laporan Gudang: Jumlah Fisik" type="long">
+            <camunda:validation>
+              <camunda:constraint name="readonly" />
+            </camunda:validation>
+          </camunda:formField>
+          <camunda:formField id="adjustmentDecision" label="Tindakan Koreksi Database (Ketik: setuju / tolak)" type="string" defaultValue="setuju" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>SF_GW1_to_ApproveAdjustment</bpmn:incoming>
+      <bpmn:outgoing>SF_Approve_to_GW2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="GW_ApprovalAdjustment" name="Adjustment Disetujui?">
+      <bpmn:incoming>SF_Approve_to_GW2</bpmn:incoming>
+      <bpmn:outgoing>SF_GW2_to_Ditolak</bpmn:outgoing>
+      <bpmn:outgoing>SF_GW2_to_Execute</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="EndEvent_AdjustmentDitolak" name="Adjustment Ditolak">
+      <bpmn:incoming>SF_GW2_to_Ditolak</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="Task_ExecuteFinalAdjustment" name="Sistem Menyesuaikan Data Stok Permanen" camunda:expression="${true}">
+      <bpmn:incoming>SF_GW2_to_Execute</bpmn:incoming>
+      <bpmn:outgoing>SF_Execute_to_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="EndEvent_AdjustmentSelesai" name="Adjustment Selesai">
+      <bpmn:incoming>SF_Execute_to_End</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="SF_Start_to_Freeze" sourceRef="StartEvent_PerintahOpname" targetRef="Task_FreezeStok" />
+    <bpmn:sequenceFlow id="SF_Freeze_to_Scan" sourceRef="Task_FreezeStok" targetRef="Task_ScanFisikBarang" />
+    <bpmn:sequenceFlow id="SF_Scan_to_Komparasi" sourceRef="Task_ScanFisikBarang" targetRef="Task_OtomatisKomparasiStok" />
+    <bpmn:sequenceFlow id="SF_Komparasi_to_GW1" sourceRef="Task_OtomatisKomparasiStok" targetRef="GW_CekSelisihStok" />
+    <bpmn:sequenceFlow id="SF_GW1_to_OpnameSukses" name="Tidak Ada Selisih" sourceRef="GW_CekSelisihStok" targetRef="EndEvent_OpnameSukses">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${adaSelisih == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="SF_GW1_to_ApproveAdjustment" name="Ada Selisih" sourceRef="GW_CekSelisihStok" targetRef="Task_ApproveStockAdjustment">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${adaSelisih == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="SF_Approve_to_GW2" sourceRef="Task_ApproveStockAdjustment" targetRef="GW_ApprovalAdjustment" />
+    <bpmn:sequenceFlow id="SF_GW2_to_Ditolak" name="Ditolak" sourceRef="GW_ApprovalAdjustment" targetRef="EndEvent_AdjustmentDitolak">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${adjustmentDecision == 'tolak'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="SF_GW2_to_Execute" name="Disetujui" sourceRef="GW_ApprovalAdjustment" targetRef="Task_ExecuteFinalAdjustment">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${adjustmentDecision == 'setuju'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="SF_Execute_to_End" sourceRef="Task_ExecuteFinalAdjustment" targetRef="EndEvent_AdjustmentSelesai" />
+    <bpmn:serviceTask id="Task_OtomatisKomparasiStok" name="Sistem Membandingkan Stok Fisik vs Database" camunda:expression="${true}">
+      <bpmn:incoming>SF_Scan_to_Komparasi</bpmn:incoming>
+      <bpmn:outgoing>SF_Komparasi_to_GW1</bpmn:outgoing>
+    </bpmn:serviceTask>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_StockOpname">
+    <bpmndi:BPMNPlane id="BPMNPlane_StockOpname" bpmnElement="Collaboration_StockOpname">
+      <bpmndi:BPMNShape id="Participant_Satglow_di" bpmnElement="Participant_Satglow" isHorizontal="true">
+        <dc:Bounds x="120" y="80" width="1190" height="480" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_StaffGudang_di" bpmnElement="Lane_StaffGudang" isHorizontal="true">
+        <dc:Bounds x="150" y="400" width="1160" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_SistemWMS_di" bpmnElement="Lane_SistemWMS" isHorizontal="true">
+        <dc:Bounds x="150" y="240" width="1160" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Manager_di" bpmnElement="Lane_Manager" isHorizontal="true">
+        <dc:Bounds x="150" y="80" width="1160" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_PerintahOpname_di" bpmnElement="StartEvent_PerintahOpname">
+        <dc:Bounds x="200" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_FreezeStok_di" bpmnElement="Task_FreezeStok">
+        <dc:Bounds x="290" y="280" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ScanFisikBarang_di" bpmnElement="Task_ScanFisikBarang">
+        <dc:Bounds x="440" y="440" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_CekSelisihStok_di" bpmnElement="GW_CekSelisihStok" isMarkerVisible="true">
+        <dc:Bounds x="740" y="295" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ApproveStockAdjustment_di" bpmnElement="Task_ApproveStockAdjustment">
+        <dc:Bounds x="830" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="GW_ApprovalAdjustment_di" bpmnElement="GW_ApprovalAdjustment" isMarkerVisible="true">
+        <dc:Bounds x="980" y="135" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1012" y="185" width="56" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_AdjustmentDitolak_di" bpmnElement="EndEvent_AdjustmentDitolak">
+        <dc:Bounds x="1080" y="142" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ExecuteFinalAdjustment_di" bpmnElement="Task_ExecuteFinalAdjustment">
+        <dc:Bounds x="955" y="280" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_AdjustmentSelesai_di" bpmnElement="EndEvent_AdjustmentSelesai">
+        <dc:Bounds x="1100" y="302" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_OtomatisKomparasiStok_di" bpmnElement="Task_OtomatisKomparasiStok">
+        <dc:Bounds x="600" y="280" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SF_Start_to_Freeze_di" bpmnElement="SF_Start_to_Freeze">
+        <di:waypoint x="236" y="160" />
+        <di:waypoint x="260" y="160" />
+        <di:waypoint x="260" y="320" />
+        <di:waypoint x="290" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_Freeze_to_Scan_di" bpmnElement="SF_Freeze_to_Scan">
+        <di:waypoint x="390" y="320" />
+        <di:waypoint x="415" y="320" />
+        <di:waypoint x="415" y="480" />
+        <di:waypoint x="440" y="480" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_Scan_to_Komparasi_di" bpmnElement="SF_Scan_to_Komparasi">
+        <di:waypoint x="540" y="480" />
+        <di:waypoint x="565" y="480" />
+        <di:waypoint x="565" y="320" />
+        <di:waypoint x="600" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_Komparasi_to_GW1_di" bpmnElement="SF_Komparasi_to_GW1">
+        <di:waypoint x="700" y="320" />
+        <di:waypoint x="740" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_GW1_to_ApproveAdjustment_di" bpmnElement="SF_GW1_to_ApproveAdjustment">
+        <di:waypoint x="765" y="295" />
+        <di:waypoint x="765" y="160" />
+        <di:waypoint x="830" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_Approve_to_GW2_di" bpmnElement="SF_Approve_to_GW2">
+        <di:waypoint x="930" y="160" />
+        <di:waypoint x="980" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_GW2_to_Ditolak_di" bpmnElement="SF_GW2_to_Ditolak">
+        <di:waypoint x="1030" y="160" />
+        <di:waypoint x="1080" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_GW2_to_Execute_di" bpmnElement="SF_GW2_to_Execute">
+        <di:waypoint x="1005" y="185" />
+        <di:waypoint x="1005" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SF_Execute_to_End_di" bpmnElement="SF_Execute_to_End">
+        <di:waypoint x="1055" y="320" />
+        <di:waypoint x="1100" y="320" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

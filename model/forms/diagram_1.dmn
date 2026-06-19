@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:camunda="http://camunda.org/schema/1.0/dmn" id="Definitions_DMN_Satglow" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.46.1">
+  <decision id="Decision_Diskon" name="Penentuan Diskon Clearance" camunda:historyTimeToLive="30">
+    <decisionTable id="DecisionTable_1v2k9c8">
+      <input id="Input_1" label="Sisa Hari Kedaluwarsa" camunda:inputVariable="sisaHari">
+        <inputExpression id="InputExpression_1" typeRef="integer">
+          <text>sisaHari</text>
+        </inputExpression>
+      </input>
+      <output id="Output_1" label="Rekomendasi Promo" name="statusPromo" typeRef="string" />
+      <rule id="DecisionRule_1">
+        <inputEntry id="UnaryTests_1">
+          <text>&lt;= 30</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_1">
+          <text>"Diskon 70%"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_2">
+        <inputEntry id="UnaryTests_2">
+          <text>[31..60]</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_2">
+          <text>"Diskon 50%"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_3">
+        <inputEntry id="UnaryTests_3">
+          <text>[61..90]</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_3">
+          <text>"Diskon 30%"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="Decision_Diskon">
+        <dc:Bounds height="80" width="180" x="160" y="80" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>
