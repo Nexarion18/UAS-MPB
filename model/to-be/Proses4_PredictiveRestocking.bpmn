@@ -39,34 +39,86 @@
       <bpmn:incoming>SF_Forecast_to_GW1</bpmn:incoming>
       <bpmn:outgoing>SF_GW1_to_StokAman</bpmn:outgoing>
       <bpmn:outgoing>SF_GW1_to_DraftPO</bpmn:outgoing>
+      <bpmn:outgoing>Flow_19isjgk</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <bpmn:endEvent id="EndEvent_StokAman" name="Stok Aman">
+    <bpmn:serviceTask id="Task_NotifStokAman" name="Notifikasi Stok Aman">
+      <bpmn:extensionElements>
+        <camunda:connector>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="url">
+              <camunda:script scriptFormat="javascript">"https://discordapp.com/api/webhooks/1517172296018559207/o7F755573IME08LxZj5eJw_6Sz994TBxIFKkYXtzdl5vQgaKYuXuDYfINpEV2UuIzn06";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="method">
+              <camunda:script scriptFormat="javascript">"POST";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="headers">
+              <camunda:map>
+                <camunda:entry key="Content-Type">application/json</camunda:entry>
+              </camunda:map>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="payload">
+              <camunda:script scriptFormat="javascript">JSON.stringify({ "content": "🟢 **[AI FORECASTING]** Pengecekan rutin selesai. Stok saat ini dinilai AMAN. Tidak ada Draft PO yang dibuat." });</camunda:script>
+            </camunda:inputParameter>
+          </camunda:inputOutput>
+          <camunda:connectorId>http-connector</camunda:connectorId>
+        </camunda:connector>
+      </bpmn:extensionElements>
       <bpmn:incoming>SF_GW1_to_StokAman</bpmn:incoming>
+      <bpmn:outgoing>SF_NotifAman_to_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="EndEvent_StokAman" name="Stok Aman">
+      <bpmn:incoming>SF_NotifAman_to_End</bpmn:incoming>
+      <bpmn:incoming>Flow_19isjgk</bpmn:incoming>
     </bpmn:endEvent>
-    <bpmn:userTask id="Task_ReviewDraftPO" name="Review Draft PO oleh Manager" camunda:candidateGroups="managerSG" camunda:formRef="Form_ReviewPO" camunda:formRefBinding="latest">
-  <bpmn:incoming>SF_DraftPO_to_ReviewPO</bpmn:incoming>
-  <bpmn:outgoing>SF_ReviewPO_to_GW2</bpmn:outgoing>
-</bpmn:userTask>
-    <bpmn:userTask id="Task_KirimPOSupplier" name="Kirim PO ke Supplier" camunda:candidateGroups="adminSG">
+    <bpmn:userTask id="Task_ReviewDraftPO" name="Review Draft PO oleh Manager" camunda:formRef="Form_ReviewPO" camunda:formRefBinding="latest" camunda:candidateGroups="managerSG">
+      <bpmn:incoming>SF_DraftPO_to_ReviewPO</bpmn:incoming>
+      <bpmn:outgoing>SF_ReviewPO_to_GW2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="Task_KirimPOSupplier" name="Kirim PO ke Supplier">
+      <bpmn:extensionElements>
+        <camunda:connector>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="url">
+              <camunda:script scriptFormat="javascript">"https://discordapp.com/api/webhooks/1517172296018559207/o7F755573IME08LxZj5eJw_6Sz994TBxIFKkYXtzdl5vQgaKYuXuDYfINpEV2UuIzn06";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="method">
+              <camunda:script scriptFormat="javascript">"POST";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="headers">
+              <camunda:map>
+                <camunda:entry key="Content-Type">application/json</camunda:entry>
+              </camunda:map>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="payload">
+              <camunda:script scriptFormat="javascript">var jumlah = execution.getVariable("jumlahRestok") || "0";
+var pesan = "📧 **WMS Purchase Order:** Draf PO untuk restock sebanyak **" + jumlah + " unit** telah disetujui Manager dan otomatis dikirim ke pihak Supplier.";
+JSON.stringify({ "content": pesan });</camunda:script>
+            </camunda:inputParameter>
+          </camunda:inputOutput>
+          <camunda:connectorId>http-connector</camunda:connectorId>
+        </camunda:connector>
+      </bpmn:extensionElements>
       <bpmn:incoming>SF_GW2_to_KirimPO</bpmn:incoming>
       <bpmn:outgoing>SF_KirimPO_to_End</bpmn:outgoing>
-    </bpmn:userTask>
+    </bpmn:serviceTask>
     <bpmn:endEvent id="EndEvent_RestockSelesai" name="Restock Selesai">
       <bpmn:incoming>SF_KirimPO_to_End</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:sequenceFlow id="SF_Start_to_Forecast" sourceRef="StartEvent_JadwalRestock" targetRef="Task_AI_ForecastingVelocity" />
     <bpmn:sequenceFlow id="SF_Forecast_to_GW1" sourceRef="Task_AI_ForecastingVelocity" targetRef="GW_CekKecukupanStok" />
-    <bpmn:sequenceFlow id="SF_GW1_to_StokAman" name="Stok Cukup" sourceRef="GW_CekKecukupanStok" targetRef="EndEvent_StokAman">
+    <bpmn:sequenceFlow id="SF_GW1_to_StokAman" name="Stok Cukup" sourceRef="GW_CekKecukupanStok" targetRef="Task_NotifStokAman">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${stokCukup == true}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="SF_NotifAman_to_End" sourceRef="Task_NotifStokAman" targetRef="EndEvent_StokAman" />
     <bpmn:sequenceFlow id="SF_GW1_to_DraftPO" name="Stok Menipis" sourceRef="GW_CekKecukupanStok" targetRef="Task_AutoGenerateDraftPO">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${stokCukup == false}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="SF_DraftPO_to_ReviewPO" sourceRef="Task_AutoGenerateDraftPO" targetRef="Task_ReviewDraftPO" />
     <bpmn:sequenceFlow id="SF_ReviewPO_to_GW2" sourceRef="Task_ReviewDraftPO" targetRef="GW_KelulusanManager" />
-    <bpmn:sequenceFlow id="SF_GW2_to_PORefused" name="Ditolak" sourceRef="GW_KelulusanManager" targetRef="EndEvent_PORefused">
+    <bpmn:sequenceFlow id="SF_GW2_to_PORefused" name="Ditolak" sourceRef="GW_KelulusanManager" targetRef="Task_NotifPODitolak">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${managerPODecision == 'tolak'}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="SF_NotifDitolak_to_End" sourceRef="Task_NotifPODitolak" targetRef="EndEvent_PORefused" />
     <bpmn:sequenceFlow id="SF_GW2_to_KirimPO" name="Disetujui" sourceRef="GW_KelulusanManager" targetRef="Task_KirimPOSupplier">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${managerPODecision == 'setuju'}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
@@ -80,9 +132,35 @@
       <bpmn:outgoing>SF_GW2_to_PORefused</bpmn:outgoing>
       <bpmn:outgoing>SF_GW2_to_KirimPO</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <bpmn:endEvent id="EndEvent_PORefused" name="PO Ditolak">
+    <bpmn:serviceTask id="Task_NotifPODitolak" name="Notifikasi PO Ditolak">
+      <bpmn:extensionElements>
+        <camunda:connector>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="url">
+              <camunda:script scriptFormat="javascript">"https://discordapp.com/api/webhooks/1517172296018559207/o7F755573IME08LxZj5eJw_6Sz994TBxIFKkYXtzdl5vQgaKYuXuDYfINpEV2UuIzn06";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="method">
+              <camunda:script scriptFormat="javascript">"POST";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="headers">
+              <camunda:map>
+                <camunda:entry key="Content-Type">application/json</camunda:entry>
+              </camunda:map>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="payload">
+              <camunda:script scriptFormat="javascript">JSON.stringify({ "content": "🛑 **[WMS PO REJECTED]** Manager WMS menolak pengajuan Draft PO dari sistem AI. PO dibatalkan dan tidak dikirim ke supplier." });</camunda:script>
+            </camunda:inputParameter>
+          </camunda:inputOutput>
+          <camunda:connectorId>http-connector</camunda:connectorId>
+        </camunda:connector>
+      </bpmn:extensionElements>
       <bpmn:incoming>SF_GW2_to_PORefused</bpmn:incoming>
+      <bpmn:outgoing>SF_NotifDitolak_to_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="EndEvent_PORefused" name="PO Ditolak">
+      <bpmn:incoming>SF_NotifDitolak_to_End</bpmn:incoming>
     </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_19isjgk" sourceRef="GW_CekKecukupanStok" targetRef="EndEvent_StokAman" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_PredictiveRestocking">
     <bpmndi:BPMNPlane id="BPMNPlane_PredictiveRestocking" bpmnElement="Collaboration_PredictiveRestocking">
@@ -116,7 +194,7 @@
       <bpmndi:BPMNShape id="EndEvent_StokAman_di" bpmnElement="EndEvent_StokAman">
         <dc:Bounds x="452" y="102" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="444" y="145" width="54" height="14" />
+          <dc:Bounds x="443" y="78" width="54" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Task_ReviewDraftPO_di" bpmnElement="Task_ReviewDraftPO">
@@ -154,13 +232,6 @@
         <di:waypoint x="390" y="240" />
         <di:waypoint x="445" y="240" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="SF_GW1_to_StokAman_di" bpmnElement="SF_GW1_to_StokAman">
-        <di:waypoint x="470" y="215" />
-        <di:waypoint x="470" y="138" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="476" y="174" width="57" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="SF_GW1_to_DraftPO_di" bpmnElement="SF_GW1_to_DraftPO">
         <di:waypoint x="495" y="240" />
         <di:waypoint x="610" y="240" />
@@ -196,6 +267,10 @@
       <bpmndi:BPMNEdge id="SF_KirimPO_to_End_di" bpmnElement="SF_KirimPO_to_End">
         <di:waypoint x="910" y="560" />
         <di:waypoint x="972" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_19isjgk_di" bpmnElement="Flow_19isjgk">
+        <di:waypoint x="470" y="215" />
+        <di:waypoint x="470" y="138" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

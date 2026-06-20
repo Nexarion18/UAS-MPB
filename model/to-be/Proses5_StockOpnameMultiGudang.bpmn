@@ -74,7 +74,31 @@
     <bpmn:endEvent id="EndEvent_AdjustmentDitolak" name="Adjustment Ditolak">
       <bpmn:incoming>SF_GW2_to_Ditolak</bpmn:incoming>
     </bpmn:endEvent>
-    <bpmn:serviceTask id="Task_ExecuteFinalAdjustment" name="Sistem Menyesuaikan Data Stok Permanen" camunda:expression="${true}">
+    <bpmn:serviceTask id="Task_ExecuteFinalAdjustment" name="Sistem Menyesuaikan Data Stok Permanen">
+      <bpmn:extensionElements>
+        <camunda:connector>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="url">
+              <camunda:script scriptFormat="javascript">"https://discordapp.com/api/webhooks/1517172296018559207/o7F755573IME08LxZj5eJw_6Sz994TBxIFKkYXtzdl5vQgaKYuXuDYfINpEV2UuIzn06";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="method">
+              <camunda:script scriptFormat="javascript">"POST";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="headers">
+              <camunda:map>
+                <camunda:entry key="Content-Type">application/json</camunda:entry>
+              </camunda:map>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="payload">
+              <camunda:script scriptFormat="javascript">var batch = execution.getVariable("batchID") || "Unknown";
+var qtyFisik = execution.getVariable("jumlahFisik") || "0";
+var pesan = "📊 **WMS Stock Opname:** Manager telah menyetujui penyesuaian stok. Sistem permanen mengupdate stok Batch **" + batch + "** menjadi **" + qtyFisik + " unit** sesuai hasil scan fisik.";
+JSON.stringify({ "content": pesan });</camunda:script>
+            </camunda:inputParameter>
+          </camunda:inputOutput>
+          <camunda:connectorId>http-connector</camunda:connectorId>
+        </camunda:connector>
+      </bpmn:extensionElements>
       <bpmn:incoming>SF_GW2_to_Execute</bpmn:incoming>
       <bpmn:outgoing>SF_Execute_to_End</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -99,7 +123,37 @@
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${adjustmentDecision == 'setuju'}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="SF_Execute_to_End" sourceRef="Task_ExecuteFinalAdjustment" targetRef="EndEvent_AdjustmentSelesai" />
-    <bpmn:serviceTask id="Task_OtomatisKomparasiStok" name="Sistem Membandingkan Stok Fisik vs Database" camunda:expression="${true}">
+    <bpmn:serviceTask id="Task_OtomatisKomparasiStok" name="Sistem Membandingkan Stok Fisik vs Database">
+      <bpmn:extensionElements>
+        <camunda:connector>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="url">
+              <camunda:script scriptFormat="javascript">"https://discordapp.com/api/webhooks/1517172296018559207/o7F755573IME08LxZj5eJw_6Sz994TBxIFKkYXtzdl5vQgaKYuXuDYfINpEV2UuIzn06";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="method">
+              <camunda:script scriptFormat="javascript">"POST";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="headers">
+              <camunda:map>
+                <camunda:entry key="Content-Type">application/json</camunda:entry>
+              </camunda:map>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="payload">
+              <camunda:script scriptFormat="javascript">var selisih = execution.getVariable("adaSelisih");
+var pesan = "";
+if(selisih === true) {
+  var batch = execution.getVariable("batchID") || "Terdeteksi";
+  var fisik = execution.getVariable("jumlahFisik") || "Scan";
+  pesan = "⚠️ **[WMS ALERT]** Sistem mendeteksi SELISIH STOK pada audit. Menunggu approval Manager WMS untuk penyesuaian (Adjustment) database.";
+} else {
+  pesan = "✅ **[WMS AUDIT LOG]** Komparasi selesai. Stok fisik gudang sesuai dengan database sistem. Opname ditutup dengan sukses.";
+}
+JSON.stringify({ "content": pesan });</camunda:script>
+            </camunda:inputParameter>
+          </camunda:inputOutput>
+          <camunda:connectorId>http-connector</camunda:connectorId>
+        </camunda:connector>
+      </bpmn:extensionElements>
       <bpmn:incoming>SF_Scan_to_Komparasi</bpmn:incoming>
       <bpmn:outgoing>SF_Komparasi_to_GW1</bpmn:outgoing>
     </bpmn:serviceTask>

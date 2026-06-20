@@ -57,12 +57,20 @@
       <bpmn:extensionElements>
         <camunda:connector>
           <camunda:inputOutput>
-            <camunda:inputParameter name="url">https://discordapp.com/api/webhooks/1517172290822082762/GzB9eiHib3Dmf-LzR4_sPdlX1e1_uUZ2RP_wbuw3CLxiay-Xz8dK-BIOFt1VIqHAyDfl</camunda:inputParameter>
-            <camunda:inputParameter name="method">POST</camunda:inputParameter>
+            <camunda:inputParameter name="url">
+              <camunda:script scriptFormat="javascript">"https://discordapp.com/api/webhooks/1517172296018559207/o7F755573IME08LxZj5eJw_6Sz994TBxIFKkYXtzdl5vQgaKYuXuDYfINpEV2UuIzn06";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="method">
+              <camunda:script scriptFormat="javascript">"POST";</camunda:script>
+            </camunda:inputParameter>
             <camunda:inputParameter name="headers">
               <camunda:map>
                 <camunda:entry key="Content-Type">application/json</camunda:entry>
               </camunda:map>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="payload">
+              <camunda:script scriptFormat="javascript">var pesan = "🚀 **Notifikasi WMS Satglow** 🚀\nSistem sedang men-generate Form Inbound Digital untuk staff gudang.";
+JSON.stringify({ "content": pesan });</camunda:script>
             </camunda:inputParameter>
           </camunda:inputOutput>
           <camunda:connectorId>http-connector</camunda:connectorId>
@@ -81,7 +89,28 @@
       <bpmn:outgoing>Flow_GW_Valid</bpmn:outgoing>
       <bpmn:outgoing>Flow_GW_TidakValid</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <bpmn:serviceTask id="Task_TampilkanAlertError" name="Menampilkan alert error" camunda:expression="${true}">
+    <bpmn:serviceTask id="Task_TampilkanAlertError" name="Menampilkan alert error">
+      <bpmn:extensionElements>
+        <camunda:connector>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="url">
+              <camunda:script scriptFormat="javascript">"https://discordapp.com/api/webhooks/1517172296018559207/o7F755573IME08LxZj5eJw_6Sz994TBxIFKkYXtzdl5vQgaKYuXuDYfINpEV2UuIzn06";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="method">
+              <camunda:script scriptFormat="javascript">"POST";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="headers">
+              <camunda:map>
+                <camunda:entry key="Content-Type">application/json</camunda:entry>
+              </camunda:map>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="payload">
+              <camunda:script scriptFormat="javascript">JSON.stringify({ "content": "🛑 **[WMS INBOUND ERROR]** Input data tidak valid. Sistem mengembalikan tugas ke Staff Gudang untuk melakukan revisi!" });</camunda:script>
+            </camunda:inputParameter>
+          </camunda:inputOutput>
+          <camunda:connectorId>http-connector</camunda:connectorId>
+        </camunda:connector>
+      </bpmn:extensionElements>
       <bpmn:incoming>Flow_GW_TidakValid</bpmn:incoming>
       <bpmn:outgoing>Flow_Alert_to_Revis</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -94,11 +123,56 @@
       <bpmn:incoming>Flow_Alert_to_Revis</bpmn:incoming>
       <bpmn:outgoing>Flow_Revis_to_Input</bpmn:outgoing>
     </bpmn:userTask>
-    <bpmn:serviceTask id="Task_AlokasiIDBatch" name="Mengalokasikan ID Batch unik berdasarkan Tanggal Kedaluwarsa" camunda:expression="${true}">
+    <bpmn:serviceTask id="Task_AlokasiIDBatch" name="Mengalokasikan ID Batch unik berdasarkan Tanggal Kedaluwarsa">
+      <bpmn:extensionElements>
+        <camunda:connector>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="url">
+              <camunda:script scriptFormat="javascript">"https://discordapp.com/api/webhooks/1517172296018559207/o7F755573IME08LxZj5eJw_6Sz994TBxIFKkYXtzdl5vQgaKYuXuDYfINpEV2UuIzn06";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="method">
+              <camunda:script scriptFormat="javascript">"POST";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="headers">
+              <camunda:map>
+                <camunda:entry key="Content-Type">application/json</camunda:entry>
+              </camunda:map>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="payload">
+              <camunda:script scriptFormat="javascript">JSON.stringify({ "content": "🟢 **[WMS INBOUND VALID]** Verifikasi input sukses. Sistem mengalokasikan ID Batch baru berdasarkan tanggal kedaluwarsa." });</camunda:script>
+            </camunda:inputParameter>
+          </camunda:inputOutput>
+          <camunda:connectorId>http-connector</camunda:connectorId>
+        </camunda:connector>
+      </bpmn:extensionElements>
       <bpmn:incoming>Flow_GW_Valid</bpmn:incoming>
       <bpmn:outgoing>Flow_Batch_to_DB</bpmn:outgoing>
     </bpmn:serviceTask>
-    <bpmn:serviceTask id="Task_SimpanDatabase" name="Menyimpan data Inbound ke Database" camunda:expression="${true}">
+    <bpmn:serviceTask id="Task_SimpanDatabase" name="Menyimpan data Inbound ke Database">
+      <bpmn:extensionElements>
+        <camunda:connector>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="url">
+              <camunda:script scriptFormat="javascript">"https://discordapp.com/api/webhooks/1517172296018559207/o7F755573IME08LxZj5eJw_6Sz994TBxIFKkYXtzdl5vQgaKYuXuDYfINpEV2UuIzn06";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="method">
+              <camunda:script scriptFormat="javascript">"POST";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="headers">
+              <camunda:map>
+                <camunda:entry key="Content-Type">application/json</camunda:entry>
+              </camunda:map>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="payload">
+              <camunda:script scriptFormat="javascript">var nama = execution.getVariable("namaBarang") || "Barang Unknown";
+var qty = execution.getVariable("qtyBarang") || "0";
+var pesan = "📦 **WMS Inbound Sukses:** Barang **" + nama + "** sebanyak **" + qty + " pcs** telah diverifikasi dan disimpan ke Database WMS Satglow.";
+JSON.stringify({ "content": pesan });</camunda:script>
+            </camunda:inputParameter>
+          </camunda:inputOutput>
+          <camunda:connectorId>http-connector</camunda:connectorId>
+        </camunda:connector>
+      </bpmn:extensionElements>
       <bpmn:incoming>Flow_Batch_to_DB</bpmn:incoming>
       <bpmn:outgoing>Flow_DB_to_End</bpmn:outgoing>
     </bpmn:serviceTask>

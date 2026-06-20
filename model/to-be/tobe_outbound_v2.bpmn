@@ -2,7 +2,7 @@
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_SatglowWMS_Outbound_ToBe" targetNamespace="http://satglow.com/wms/bpmn" exporter="Camunda Modeler" exporterVersion="5.46.1">
   <bpmn:message id="Message_PesananMasuk" name="Message_PesananMasuk" />
   <bpmn:message id="Message_StatusDikirim" name="Message_StatusDikirim" />
-  
+
   <bpmn:collaboration id="Collaboration_WMS_Outbound_ToBe">
     <bpmn:participant id="Pool_Marketplace" name="Entitas Eksternal (Marketplace / TikTok / Shopee / dll)" processRef="Process_Marketplace_sg" />
     <bpmn:participant id="Pool_Satglow" name="Internal Satglow" processRef="Process_Outbound_WMS" />
@@ -17,7 +17,7 @@
     </bpmn:textAnnotation>
     <bpmn:association id="Assoc_FinalUpdate" sourceRef="Task_FinalUpdate" targetRef="Annotation_FinalUpdate" />
   </bpmn:collaboration>
-  
+
   <bpmn:process id="Process_Marketplace_sg" name="Proses Marketplace" isExecutable="false">
     <bpmn:startEvent id="StartEvent_PesananMasuk" name="Transaksi berhasil (API Trigger)">
       <bpmn:outgoing>SF_Marketplace_Internal</bpmn:outgoing>
@@ -28,7 +28,7 @@
     </bpmn:endEvent>
     <bpmn:sequenceFlow id="SF_Marketplace_Internal" sourceRef="StartEvent_PesananMasuk" targetRef="EndEvent_Marketplace" />
   </bpmn:process>
-  
+
   <bpmn:process id="Process_Outbound_WMS" name="Proses 7 - Outbound &#38; FEFO" isExecutable="true" camunda:historyTimeToLive="30" camunda:tenantId="55555">
     <bpmn:laneSet id="LaneSet_Satglow">
       <bpmn:lane id="Lane_SistemWMS" name="Sistem WMS">
@@ -49,7 +49,7 @@
         <bpmn:flowNodeRef>Task_ApproveResi</bpmn:flowNodeRef>
       </bpmn:lane>
     </bpmn:laneSet>
-    
+
     <bpmn:startEvent id="CatchEvent_API" name="Menerima payload API pesanan (Simulasi)">
       <bpmn:extensionElements>
         <camunda:formData>
@@ -58,13 +58,36 @@
       </bpmn:extensionElements>
       <bpmn:outgoing>SF_Catch_FEFO</bpmn:outgoing>
     </bpmn:startEvent>
-    
+
     <bpmn:serviceTask id="Task_FEFO" name="Menjalankan algoritma FEFO (mencari ID Batch terdekat)" camunda:expression="${true}">
       <bpmn:incoming>SF_Catch_FEFO</bpmn:incoming>
       <bpmn:outgoing>SF_FEFO_PickingList</bpmn:outgoing>
     </bpmn:serviceTask>
-    
-    <bpmn:serviceTask id="Task_BuatPickingList" name="Membuat Picking List otomatis" camunda:expression="${true}">
+
+    <bpmn:serviceTask id="Task_BuatPickingList" name="Membuat Picking List otomatis">
+      <bpmn:extensionElements>
+        <camunda:connector>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="url">
+              <camunda:script scriptFormat="javascript">"https://discordapp.com/api/webhooks/1517172296018559207/o7F755573IME08LxZj5eJw_6Sz994TBxIFKkYXtzdl5vQgaKYuXuDYfINpEV2UuIzn06";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="method">
+              <camunda:script scriptFormat="javascript">"POST";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="headers">
+              <camunda:map>
+                <camunda:entry key="Content-Type">application/json</camunda:entry>
+              </camunda:map>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="payload">
+              <camunda:script scriptFormat="javascript">var id = execution.getVariable("orderID") || "Pesanan Baru";
+var pesan = "📋 **[WMS FEFO LOG]** Pesanan **" + id + "** masuk.\nAlgoritma FEFO telah menemukan batch expired terdekat. Picking List diterbitkan, menunggu staff gudang mengambil barang!";
+JSON.stringify({ "content": pesan });</camunda:script>
+            </camunda:inputParameter>
+          </camunda:inputOutput>
+          <camunda:connectorId>http-connector</camunda:connectorId>
+        </camunda:connector>
+      </bpmn:extensionElements>
       <bpmn:incoming>SF_FEFO_PickingList</bpmn:incoming>
       <bpmn:outgoing>SF_PickingList_BacaPickingList</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -72,11 +95,11 @@
     <bpmn:subProcess id="SubProcess_PickingFisik" name="Sub-Proses Pelaksanaan Picking Fisik">
       <bpmn:incoming>SF_PickingList_BacaPickingList</bpmn:incoming>
       <bpmn:outgoing>SF_Scan_ReserveStok</bpmn:outgoing>
-      
+
       <bpmn:startEvent id="StartEvent_SubPicking" name="Mulai">
         <bpmn:outgoing>SF_SubStart_Baca</bpmn:outgoing>
       </bpmn:startEvent>
-      
+
       <bpmn:userTask id="Task_BacaPickingList" name="Membaca Picking List via perangkat" camunda:candidateGroups="gudangSG">
         <bpmn:extensionElements>
           <camunda:formData>
@@ -86,7 +109,7 @@
         <bpmn:incoming>SF_SubStart_Baca</bpmn:incoming>
         <bpmn:outgoing>SF_Baca_AmbilBarang</bpmn:outgoing>
       </bpmn:userTask>
-      
+
       <bpmn:userTask id="Task_AmbilBarang" name="Mengambil fisik barang sesuai instruksi" camunda:candidateGroups="gudangSG">
         <bpmn:extensionElements>
           <camunda:formData>
@@ -96,16 +119,16 @@
         <bpmn:incoming>SF_Baca_AmbilBarang</bpmn:incoming>
         <bpmn:outgoing>SF_Ambil_Scan</bpmn:outgoing>
       </bpmn:userTask>
-      
+
       <bpmn:userTask id="Task_ScanBarcode" name="Scan Barcode Konfirmasi" camunda:formRef="Form_ScanBarcode" camunda:formRefBinding="latest" camunda:candidateGroups="gudangSG">
         <bpmn:incoming>SF_Ambil_Scan</bpmn:incoming>
         <bpmn:outgoing>SF_Scan_SubEnd</bpmn:outgoing>
       </bpmn:userTask>
-      
+
       <bpmn:endEvent id="EndEvent_SubPicking" name="Selesai">
         <bpmn:incoming>SF_Scan_SubEnd</bpmn:incoming>
       </bpmn:endEvent>
-      
+
       <bpmn:sequenceFlow id="SF_SubStart_Baca" sourceRef="StartEvent_SubPicking" targetRef="Task_BacaPickingList" />
       <bpmn:sequenceFlow id="SF_Baca_AmbilBarang" sourceRef="Task_BacaPickingList" targetRef="Task_AmbilBarang" />
       <bpmn:sequenceFlow id="SF_Ambil_Scan" sourceRef="Task_AmbilBarang" targetRef="Task_ScanBarcode" />
@@ -115,7 +138,7 @@
       <bpmn:incoming>SF_Scan_ReserveStok</bpmn:incoming>
       <bpmn:outgoing>SF_Reserve_CrossCheck</bpmn:outgoing>
     </bpmn:serviceTask>
-    
+
     <bpmn:userTask id="Task_CrossCheck" name="Melakukan cross-check fisik vs. sistem" camunda:candidateGroups="adminSG">
       <bpmn:extensionElements>
         <camunda:formData>
@@ -125,7 +148,7 @@
       <bpmn:incoming>SF_Reserve_CrossCheck</bpmn:incoming>
       <bpmn:outgoing>SF_CrossCheck_Approve</bpmn:outgoing>
     </bpmn:userTask>
-    
+
     <bpmn:userTask id="Task_ApproveResi" name="Approve &#38; Cetak Resi" camunda:candidateGroups="adminSG">
       <bpmn:extensionElements>
         <camunda:formData>
@@ -135,12 +158,12 @@
       <bpmn:incoming>SF_CrossCheck_Approve</bpmn:incoming>
       <bpmn:outgoing>SF_Approve_CetakLabel</bpmn:outgoing>
     </bpmn:userTask>
-    
+
     <bpmn:serviceTask id="Task_CetakLabelOtomatis" name="Mencetak label pengiriman otomatis" camunda:expression="${true}">
       <bpmn:incoming>SF_Approve_CetakLabel</bpmn:incoming>
       <bpmn:outgoing>SF_CetakLabel_FinalUpdate</bpmn:outgoing>
     </bpmn:serviceTask>
-    
+
     <bpmn:serviceTask id="Task_FinalUpdate" name="Mengeksekusi Final Update stok &#38; Kirim Notif Discord">
       <bpmn:extensionElements>
         <camunda:connector>
@@ -153,37 +176,42 @@
                 <camunda:entry key="Content-Type">application/json</camunda:entry>
               </camunda:map>
             </camunda:inputParameter>
-            <camunda:inputParameter name="payload">{"content": "🔔 **WMS Satglow Update:** Pesanan dengan Order ID **${orderID}** berhasil di-packing dan Final Update stok selesai dieksekusi!"}</camunda:inputParameter>
+            <camunda:inputParameter name="payload">
+              <camunda:script scriptFormat="javascript">var order = execution.getVariable("orderID");
+var adminVerif = execution.getVariable("adminDecision");
+var pesan = "🔔 **WMS Satglow Update:** Pesanan dengan Order ID **" + order + "** berhasil di-packing. Verifikasi: **" + adminVerif + "**. Final Update stok selesai dieksekusi!";
+JSON.stringify({ "content": pesan });</camunda:script>
+            </camunda:inputParameter>
           </camunda:inputOutput>
         </camunda:connector>
       </bpmn:extensionElements>
       <bpmn:incoming>SF_CetakLabel_FinalUpdate</bpmn:incoming>
       <bpmn:outgoing>SF_FinalUpdate_Throw</bpmn:outgoing>
     </bpmn:serviceTask>
-    
+
     <bpmn:intermediateThrowEvent id="ThrowEvent_StatusDikirim" name="Kirim status API">
       <bpmn:incoming>SF_FinalUpdate_Throw</bpmn:incoming>
       <bpmn:outgoing>SF_Throw_End</bpmn:outgoing>
       <bpmn:messageEventDefinition id="MED_StatusDikirim_Out" messageRef="Message_StatusDikirim" />
     </bpmn:intermediateThrowEvent>
-    
+
     <bpmn:endEvent id="EndEvent_OutboundSelesai" name="Proses Outbound selesai">
       <bpmn:incoming>SF_Throw_End</bpmn:incoming>
     </bpmn:endEvent>
-    
+
     <bpmn:sequenceFlow id="SF_Catch_FEFO" sourceRef="CatchEvent_API" targetRef="Task_FEFO" />
     <bpmn:sequenceFlow id="SF_FEFO_PickingList" sourceRef="Task_FEFO" targetRef="Task_BuatPickingList" />
-    
+
     <bpmn:sequenceFlow id="SF_PickingList_BacaPickingList" sourceRef="Task_BuatPickingList" targetRef="SubProcess_PickingFisik" />
     <bpmn:sequenceFlow id="SF_Scan_ReserveStok" sourceRef="SubProcess_PickingFisik" targetRef="Task_ReserveStok" />
-    
+
     <bpmn:sequenceFlow id="SF_Reserve_CrossCheck" sourceRef="Task_ReserveStok" targetRef="Task_CrossCheck" />
     <bpmn:sequenceFlow id="SF_CrossCheck_Approve" sourceRef="Task_CrossCheck" targetRef="Task_ApproveResi" />
     <bpmn:sequenceFlow id="SF_Approve_CetakLabel" sourceRef="Task_ApproveResi" targetRef="Task_CetakLabelOtomatis" />
     <bpmn:sequenceFlow id="SF_CetakLabel_FinalUpdate" sourceRef="Task_CetakLabelOtomatis" targetRef="Task_FinalUpdate" />
     <bpmn:sequenceFlow id="SF_FinalUpdate_Throw" sourceRef="Task_FinalUpdate" targetRef="ThrowEvent_StatusDikirim" />
     <bpmn:sequenceFlow id="SF_Throw_End" sourceRef="ThrowEvent_StatusDikirim" targetRef="EndEvent_OutboundSelesai" />
-    
+
     <bpmn:textAnnotation id="Annotation_FEFO">
       <bpmn:text>Algoritma FEFO memilih batch dengan Expired Date paling dekat dari 4 gudang untuk mencegah dead stock.</bpmn:text>
     </bpmn:textAnnotation>
@@ -193,7 +221,7 @@
     <bpmn:association id="Assoc_FEFO" sourceRef="Task_FEFO" targetRef="Annotation_FEFO" />
     <bpmn:association id="Assoc_ReserveStok" sourceRef="Task_ReserveStok" targetRef="Annotation_ReserveStok" />
   </bpmn:process>
-  
+
   <bpmndi:BPMNDiagram id="BPMNDiagram_WMS_Outbound_ToBe">
     <bpmndi:BPMNPlane id="BPMNPlane_WMS_Outbound_ToBe" bpmnElement="Collaboration_WMS_Outbound_ToBe">
       <bpmndi:BPMNShape id="Shape_Pool_Marketplace" bpmnElement="Pool_Marketplace" isHorizontal="true">
@@ -239,7 +267,7 @@
       <bpmndi:BPMNShape id="Shape_Task_BuatPickingList" bpmnElement="Task_BuatPickingList">
         <dc:Bounds x="530" y="350" width="160" height="80" />
       </bpmndi:BPMNShape>
-      
+
       <bpmndi:BPMNShape id="Shape_SubProcess_PickingFisik" bpmnElement="SubProcess_PickingFisik" isExpanded="true">
         <dc:Bounds x="480" y="515" width="760" height="180" />
       </bpmndi:BPMNShape>
@@ -280,7 +308,7 @@
         <di:waypoint x="1140" y="600" />
         <di:waypoint x="1170" y="600" />
       </bpmndi:BPMNEdge>
-      
+
       <bpmndi:BPMNShape id="Shape_Task_ReserveStok" bpmnElement="Task_ReserveStok">
         <dc:Bounds x="1290" y="350" width="160" height="80" />
       </bpmndi:BPMNShape>

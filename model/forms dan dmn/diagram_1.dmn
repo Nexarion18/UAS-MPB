@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:camunda="http://camunda.org/schema/1.0/dmn" id="Definitions_DMN_Satglow" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.46.1">
+<definitions xmlns="http://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="http://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:camunda="http://camunda.org/schema/1.0/dmn" id="Definitions_DMN_Satglow" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.46.1">
   <decision id="Decision_Diskon" name="Penentuan Diskon Clearance" camunda:historyTimeToLive="30">
     <decisionTable id="DecisionTable_1v2k9c8">
       <input id="Input_1" label="Sisa Hari Kedaluwarsa" camunda:inputVariable="sisaHari">
@@ -10,7 +10,7 @@
       <output id="Output_1" label="Rekomendasi Promo" name="statusPromo" typeRef="string" />
       <rule id="DecisionRule_1">
         <inputEntry id="UnaryTests_1">
-          <text>&lt;= 30</text>
+          <text><![CDATA[<= 30]]></text>
         </inputEntry>
         <outputEntry id="LiteralExpression_1">
           <text>"Diskon 70%"</text>
