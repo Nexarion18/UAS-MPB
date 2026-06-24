@@ -88,11 +88,6 @@ kelompok5/
 
 Semua Service Task terintegrasi Discord menggunakan **HTTP Connector** dengan JavaScript script untuk payload.
 
-**Webhook URL:**
-```
-https://discordapp.com/api/webhooks/1517172296018559207/o7F755573IME08LxZj5eJw_6Sz994TBxIFKkYXtzdl5vQgaKYuXuDYfINpEV2UuIzn06
-```
-
 ### Daftar Task yang Mengirim Notifikasi Discord
 
 | Proses | Task ID | Trigger / Kondisi |
