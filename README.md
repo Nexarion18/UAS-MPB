@@ -281,4 +281,3 @@ GET http://cibseven2.foul.one/engine-rest/process-instance/{id}/variables
 ---
 
 ## 🎥 Video Demonstrasi
-Tautan penjelasan dan demo jalannya sistem dapat diakses pada file [video/link-video.txt](./video/link-video.txt) atau langsung di: **[Tempel Link Video Anda di Sini]**
