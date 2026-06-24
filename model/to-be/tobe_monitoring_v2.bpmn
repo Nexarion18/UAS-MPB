@@ -20,6 +20,7 @@
         <bpmn:flowNodeRef>StartEvent_CronJob</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Task_QueryBatch</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>GW_AdaStokBerisiko</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_NotifAman</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>EndEvent_HarianSelesai</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Task_AI_AnalisisVelocity</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Task_GenerateNotifikasi</bpmn:flowNodeRef>
@@ -52,11 +53,39 @@
       <bpmn:incoming>SF_Query_GW</bpmn:incoming>
       <bpmn:outgoing>SF_GW_Tidak</bpmn:outgoing>
       <bpmn:outgoing>SF_GW_Ya</bpmn:outgoing>
+      <bpmn:outgoing>Flow_0pklewh</bpmn:outgoing>
     </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_NotifAman" name="Notifikasi Stok Aman">
+      <bpmn:extensionElements>
+        <camunda:connector>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="url">
+              <camunda:script scriptFormat="javascript">"https://discordapp.com/api/webhooks/1517172296018559207/o7F755573IME08LxZj5eJw_6Sz994TBxIFKkYXtzdl5vQgaKYuXuDYfINpEV2UuIzn06";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="method">
+              <camunda:script scriptFormat="javascript">"POST";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="headers">
+              <camunda:map>
+                <camunda:entry key="Content-Type">application/json</camunda:entry>
+              </camunda:map>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="payload">
+              <camunda:script scriptFormat="javascript">var pesan = "✅ **WMS Monitoring Harian:** Sistem tidak mendeteksi adanya batch produk yang mendekati masa kedaluwarsa (kurang dari 90 hari). Stok terpantau aman.";
+JSON.stringify({ "content": pesan });</camunda:script>
+            </camunda:inputParameter>
+          </camunda:inputOutput>
+          <camunda:connectorId>http-connector</camunda:connectorId>
+        </camunda:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>SF_GW_Tidak</bpmn:incoming>
+      <bpmn:outgoing>SF_NotifAman_End</bpmn:outgoing>
+    </bpmn:serviceTask>
     <bpmn:endEvent id="EndEvent_HarianSelesai" name="Selesai (Aman)">
       <bpmn:incoming>SF_GW_Tidak</bpmn:incoming>
+      <bpmn:incoming>Flow_0pklewh</bpmn:incoming>
     </bpmn:endEvent>
-    <bpmn:businessRuleTask id="Task_AI_AnalisisVelocity" name="AI Engine: Analisis Velocity" camunda:decisionRef="Decision_Diskon" camunda:decisionRefTenantId="55555" camunda:mapDecisionResult="singleEntry" camunda:resultVariable="statusPromo">
+    <bpmn:businessRuleTask id="Task_AI_AnalisisVelocity" name="AI Engine: Analisis Velocity" camunda:resultVariable="statusPromo" camunda:decisionRef="Decision_Diskon" camunda:mapDecisionResult="singleEntry" camunda:decisionRefTenantId="55555">
       <bpmn:incoming>SF_GW_Ya</bpmn:incoming>
       <bpmn:outgoing>SF_AI_Notif</bpmn:outgoing>
     </bpmn:businessRuleTask>
@@ -97,7 +126,30 @@ JSON.stringify({ "content": pesan });</camunda:script>
       <bpmn:outgoing>SF_GW_Tolak</bpmn:outgoing>
       <bpmn:outgoing>SF_GW_Setuju</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <bpmn:serviceTask id="Task_TutupNotifikasi" name="Tutup Notifikasi" camunda:expression="${true}">
+    <bpmn:serviceTask id="Task_TutupNotifikasi" name="Tutup Notifikasi">
+      <bpmn:extensionElements>
+        <camunda:connector>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="url">
+              <camunda:script scriptFormat="javascript">"https://discordapp.com/api/webhooks/1517172296018559207/o7F755573IME08LxZj5eJw_6Sz994TBxIFKkYXtzdl5vQgaKYuXuDYfINpEV2UuIzn06";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="method">
+              <camunda:script scriptFormat="javascript">"POST";</camunda:script>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="headers">
+              <camunda:map>
+                <camunda:entry key="Content-Type">application/json</camunda:entry>
+              </camunda:map>
+            </camunda:inputParameter>
+            <camunda:inputParameter name="payload">
+              <camunda:script scriptFormat="javascript">var sisaHari = execution.getVariable("sisaHari");
+var pesan = "❌ **WMS Clearance Batal:** Rekomendasi AI ditolak oleh Manager WMS. Barang dengan sisa waktu " + sisaHari + " hari tidak diberikan diskon.";
+JSON.stringify({ "content": pesan });</camunda:script>
+            </camunda:inputParameter>
+          </camunda:inputOutput>
+          <camunda:connectorId>http-connector</camunda:connectorId>
+        </camunda:connector>
+      </bpmn:extensionElements>
       <bpmn:incoming>SF_GW_Tolak</bpmn:incoming>
       <bpmn:outgoing>SF_Tutup_End</bpmn:outgoing>
     </bpmn:serviceTask>
@@ -147,9 +199,10 @@ JSON.stringify({ "content": pesan });</camunda:script>
     </bpmn:endEvent>
     <bpmn:sequenceFlow id="SF_Cron_Query" sourceRef="StartEvent_CronJob" targetRef="Task_QueryBatch" />
     <bpmn:sequenceFlow id="SF_Query_GW" sourceRef="Task_QueryBatch" targetRef="GW_AdaStokBerisiko" />
-    <bpmn:sequenceFlow id="SF_GW_Tidak" name="Tidak" sourceRef="GW_AdaStokBerisiko" targetRef="EndEvent_HarianSelesai">
+    <bpmn:sequenceFlow id="SF_GW_Tidak" name="Tidak" sourceRef="GW_AdaStokBerisiko" targetRef="Task_NotifAman">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${stokBerisiko == false}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="SF_NotifAman_End" sourceRef="Task_NotifAman" targetRef="EndEvent_HarianSelesai" />
     <bpmn:sequenceFlow id="SF_GW_Ya" name="Ya" sourceRef="GW_AdaStokBerisiko" targetRef="Task_AI_AnalisisVelocity">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${stokBerisiko == true}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
@@ -166,6 +219,7 @@ JSON.stringify({ "content": pesan });</camunda:script>
     <bpmn:sequenceFlow id="SF_Approval_UpdateHarga" sourceRef="Task_KonfirmasiApproval" targetRef="Task_UpdateHargaClearance" />
     <bpmn:sequenceFlow id="SF_UpdateHarga_Throw" sourceRef="Task_UpdateHargaClearance" targetRef="ThrowEvent_SinkronHarga" />
     <bpmn:sequenceFlow id="SF_Throw_End" sourceRef="ThrowEvent_SinkronHarga" targetRef="EndEvent_MitigasiSukses" />
+    <bpmn:sequenceFlow id="Flow_0pklewh" sourceRef="GW_AdaStokBerisiko" targetRef="EndEvent_HarianSelesai" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_SatglowWMS_Monitoring_ToBe">
     <bpmndi:BPMNPlane id="BPMNPlane_SatglowWMS_Monitoring_ToBe" bpmnElement="Collaboration_WMS_Monitoring_ToBe">
@@ -249,13 +303,6 @@ JSON.stringify({ "content": pesan });</camunda:script>
         <di:waypoint x="380" y="320" />
         <di:waypoint x="420" y="320" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="SF_GW_Tidak_di" bpmnElement="SF_GW_Tidak">
-        <di:waypoint x="445" y="295" />
-        <di:waypoint x="445" y="276" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="447" y="282" width="26" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="SF_GW_Ya_di" bpmnElement="SF_GW_Ya">
         <di:waypoint x="470" y="320" />
         <di:waypoint x="510" y="320" />
@@ -304,6 +351,10 @@ JSON.stringify({ "content": pesan });</camunda:script>
       <bpmndi:BPMNEdge id="SF_Throw_End_di" bpmnElement="SF_Throw_End">
         <di:waypoint x="1118" y="320" />
         <di:waypoint x="1162" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0pklewh_di" bpmnElement="Flow_0pklewh">
+        <di:waypoint x="445" y="295" />
+        <di:waypoint x="445" y="276" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="Participant_Marketplace_di" bpmnElement="Pool_Marketplace" isHorizontal="true">
         <dc:Bounds x="120" y="80" width="1120" height="100" />
