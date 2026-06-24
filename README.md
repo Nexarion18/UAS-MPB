@@ -3,10 +3,11 @@
 Repositori ini berisi dokumentasi, model proses bisnis (BPMN & DMN), formulir, serta tangkapan layar (screenshots) dari implementasi proyek BPM Kelompok 5.
 
 ## 👥 Anggota Kelompok 5
-1. **[Nama Anggota 1]** - [NIM]
-2. **[Nama Anggota 2]** - [NIM]
-3. **[Nama Anggota 3]** - [NIM]
-4. **[Nama Anggota 4]** - [NIM]
+
+1. **Fendi Permadi** - 2310512093
+2. **Rifqi Arrayan Muttaqien** - 2310512124
+3. **Naufan Fardan Nurhuda** - 2310512112
+4. **Ariq Adlan Hadiyan** - 2310512080
 
 ---
 
