@@ -31,6 +31,18 @@ Proyek ini bertujuan untuk mengotomasi proses bisnis **Warehouse Management Syst
 
 ---
 
+## 🔐 Demo Credentials
+
+Berikut adalah kredensial yang dapat digunakan untuk login ke CIB Seven Tasklist selama presentasi atau pengujian:
+
+| Role | Username | Password |
+|------|----------|----------|
+| Manager WMS | `manager1` | `1234` |
+| Staff Gudang | `staffGudang1` | `12345` |
+| Staff Admin | `staffAdmin1` | `1234` |
+
+---
+
 ## 📁 Struktur Folder
 
 ```text
