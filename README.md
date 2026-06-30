@@ -23,7 +23,7 @@ Proyek ini bertujuan untuk mengotomasi proses bisnis **Warehouse Management Syst
 |----------|--------|
 | Process Engine | CIB Seven (Camunda 7 Fork) |
 | Server | `http://cibseven2.foul.one` |
-| Tenant ID | `55555` |
+| Tenant ID | `5` |
 | Modeler | Camunda Modeler 5.46.1 |
 | DMN Version | DMN 1.3 (`http://www.omg.org/spec/DMN/20191111/MODEL/`) |
 | Integrasi Eksternal | Discord Webhook (HTTP Connector) |
